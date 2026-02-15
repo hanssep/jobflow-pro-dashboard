@@ -31,14 +31,17 @@ function applyAuth (headers, editorPath) {
  */
 function getDashboardApiUrl (editorPath, dashboardId, ...path) {
     const url = new URL(window.location.href)
-    const urlBase = url.pathname.split('/').slice(0, -1).join('/') + '/api/v1/' // e.g 'http://localhost:1880/dashboard/api/v1/'
-    const pathParts = [urlBase, dashboardId, ...(path || [])].map(p => p.replace(/^\/|\/$/g, ''))
+    // The API is registered on RED.httpAdmin at /dashboard/api/v1/...
+    // so the URL must be rooted at httpAdminRoot (editorPath), NOT at
+    // window.location.pathname (which is under httpNodeRoot).
+    const pathParts = ['dashboard', 'api', 'v1', dashboardId, ...(path || [])]
+        .map(p => p.replace(/^\/|\/$/g, ''))
     if (editorPath) {
         pathParts.unshift(editorPath.replace(/\/$/, '').replace(/^\/+/, ''))
     }
     const result = new URL(url)
     result.search = ''
-    result.pathname = pathParts.join('/')
+    result.pathname = '/' + pathParts.filter(Boolean).join('/')
     return result
 }
 
