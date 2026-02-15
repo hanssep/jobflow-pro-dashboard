@@ -107,7 +107,23 @@ const getters = {
             (original, current) => +original.layout?.order === +current.layout?.order,
             (original, current) => +original.props?.width === +current.props?.width,
             (original, current) => +original.props?.height === +current.props?.height,
-            (original, current) => +original.props?.order === +current.props?.order
+            (original, current) => +original.props?.order === +current.props?.order,
+            // Check for property changes beyond dimensions (designer may change labels, colors, etc.)
+            (original, current) => {
+                const origProps = original.props || {}
+                const currProps = current.props || {}
+                // Quick check: compare JSON of key properties (excluding transient ones)
+                const skip = new Set(['_users', 'enabled', 'visible'])
+                for (const k of Object.keys(currProps)) {
+                    if (skip.has(k)) continue
+                    if (JSON.stringify(origProps[k]) !== JSON.stringify(currProps[k])) return false
+                }
+                for (const k of Object.keys(origProps)) {
+                    if (skip.has(k)) continue
+                    if (!(k in currProps)) return false
+                }
+                return true
+            }
         ]
         const pageGroupsWidgetsArray = Array.from(originalPageGroupsWidgets.values())
         for (let idx = 0; idx < originalWidgetsCount; idx++) {
@@ -195,6 +211,66 @@ const actions = {
         rootState.ui.widgets[widget.id] = widget
         commit('ui/widgets', rootState.ui.widgets, { root: true })
         return widget
+    },
+    addWidget ({ rootState, state, commit }, { type, group, name, order, height, width, props }) {
+        if (!group) {
+            throw new Error('group is required')
+        }
+        if (!rootState.ui.groups[group]) {
+            throw new Error('group does not exist')
+        }
+        if (!type || !type.startsWith('ui-')) {
+            throw new Error('invalid widget type')
+        }
+
+        // For spacers, use the existing spacer component
+        // For other types, use the spacer as a placeholder (rendered as dashed box)
+        const component = markRaw(UISpacer)
+
+        const defaultProps = {
+            group,
+            name: name || type.replace('ui-', ''),
+            tooltip: '',
+            order: order ?? 0,
+            width: width ?? 3,
+            height: height ?? 1,
+            className: '',
+            _users: [],
+            enabled: true,
+            visible: true,
+            ...(props || {})
+        }
+
+        const widget = {
+            id: newId(),
+            type,
+            name: defaultProps.name,
+            component,
+            props: defaultProps,
+            layout: {
+                order: defaultProps.order,
+                width: defaultProps.width,
+                height: defaultProps.height
+            },
+            state: { enabled: true, visible: true, class: '' },
+            __DB2_DESIGNER_ADDED: true
+        }
+        rootState.ui.widgets[widget.id] = widget
+        commit('ui/widgets', rootState.ui.widgets, { root: true })
+        return widget
+    },
+    updateWidgetProperty ({ rootState, commit }, { id, key, value }) {
+        const widget = rootState.ui.widgets[id]
+        if (!widget) {
+            throw new Error('Widget not found: ' + id)
+        }
+        // Update the props
+        widget.props[key] = value
+        // If it's a layout property, also update layout
+        if (key === 'width' || key === 'height' || key === 'order') {
+            widget.layout[key] = value
+        }
+        commit('ui/widgets', rootState.ui.widgets, { root: true })
     },
     removeWidget ({ rootState, state, commit }, payload) {
         state.shadowWidgets[payload.id] = rootState.ui.widgets[payload.id]

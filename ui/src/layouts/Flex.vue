@@ -1,6 +1,47 @@
 <template>
     <BaselineLayout :page-title="$route.meta.title">
-        <div v-if="orderedGroups" :id="'nrdb-page-' + $route.meta.id" class="nrdb-layout--flex nrdb-ui-page" :class="page?.className">
+        <!-- Designer Shell wraps the page content when in edit mode -->
+        <DesignerShell
+            v-if="editMode"
+            :dirty="dirty"
+            :save-busy="saving"
+            :can-undo="canUndo"
+            :dashboard-id="page?.ui || ''"
+            :editor-path="currentEditorPath"
+            @cancel="leaveEditMode"
+            @discard="discardEdits"
+            @save="saveEdits"
+            @undo="undoEdit"
+        >
+            <div v-if="orderedGroups" :id="'nrdb-page-' + $route.meta.id" class="nrdb-layout--flex nrdb-ui-page" :class="page?.className">
+                <div
+                    v-for="(g, $index) in orderedGroups"
+                    :id="'nrdb-ui-group-' + g.id"
+                    :key="g.id"
+                    class="nrdb-ui-group"
+                    :disabled="g.disabled === true ? 'disabled' : null"
+                    :class="getGroupClass(g)"
+                    :style="{'width': ((rowHeight * 2 * g.width) + 'px')}"
+                    :draggable="editMode"
+                    @dragstart="onGroupDragStart($event, $index, g)"
+                    @dragover="onGroupDragOver($event, $index, g)"
+                    @dragend="onGroupDragEnd($event, $index, g)"
+                    @dragleave="onGroupDragLeave($event, $index, g)"
+                    @drop.prevent
+                    @dragenter.prevent
+                >
+                    <v-card variant="outlined" class="bg-group-background" :style="{'min-height': ((rowHeight * g.height) + 'px')}">
+                        <template v-if="g.showTitle" #title>
+                            {{ g.name }}
+                        </template>
+                        <template #text>
+                            <widget-group :group="g" :index="$index" :widgets="groupWidgets(g.id)" :resizable="editMode" :designer-enabled="true" :group-dragging="groupDragging.active" @resize="onGroupResize" @widget-added="updateEditStateObjects" @widget-removed="updateEditStateObjects" @widget-drop="onWidgetDrop" @refresh-state-from-store="updateEditStateObjects" />
+                        </template>
+                    </v-card>
+                </div>
+            </div>
+        </DesignerShell>
+        <div v-if="!editMode && orderedGroups" :id="'nrdb-page-' + $route.meta.id" class="nrdb-layout--flex nrdb-ui-page" :class="page?.className">
             <div
                 v-for="(g, $index) in orderedGroups"
                 :id="'nrdb-ui-group-' + g.id"
@@ -9,24 +50,16 @@
                 :disabled="g.disabled === true ? 'disabled' : null"
                 :class="getGroupClass(g)"
                 :style="{'width': ((rowHeight * 2 * g.width) + 'px')}"
-                :draggable="editMode"
-                @dragstart="onGroupDragStart($event, $index, g)"
-                @dragover="onGroupDragOver($event, $index, g)"
-                @dragend="onGroupDragEnd($event, $index, g)"
-                @dragleave="onGroupDragLeave($event, $index, g)"
-                @drop.prevent
-                @dragenter.prevent
             >
                 <v-card variant="outlined" class="bg-group-background" :style="{'min-height': ((rowHeight * g.height) + 'px')}">
                     <template v-if="g.showTitle" #title>
                         {{ g.name }}
                     </template>
                     <template #text>
-                        <widget-group :group="g" :index="$index" :widgets="groupWidgets(g.id)" :resizable="editMode" :group-dragging="groupDragging.active" @resize="onGroupResize" @widget-added="updateEditStateObjects" @widget-removed="updateEditStateObjects" @refresh-state-from-store="updateEditStateObjects" />
+                        <widget-group :group="g" :widgets="widgetsByGroup(g.id)" />
                     </template>
                 </v-card>
             </div>
-            <EditControls v-if="editMode" :dirty="dirty" :saveBusy="saving" :canUndo="canUndo" @cancel="leaveEditMode" @discard="discardEdits" @save="saveEdits" @undo="undoEdit" />
         </div>
         <div>
             <!-- Render any widgets with a 'page' scope -->
@@ -62,20 +95,22 @@
 import { mapGetters, mapState } from 'vuex'
 
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import DesignerShell from '../designer/DesignerShell.vue'
 
 import BaselineLayout from './Baseline.vue'
 import DialogGroup from './DialogGroup.vue'
 import WidgetGroup from './Group.vue'
-import EditControls from './wysiwyg/EditControls.vue'
 import WYSIWYG from './wysiwyg/index.js'
+
+import { editorPath } from '../EditTracking.js'
 
 export default {
     name: 'LayoutFlex',
     components: {
         BaselineLayout,
         ConfirmDialog,
+        DesignerShell,
         DialogGroup,
-        EditControls,
         WidgetGroup
     },
     mixins: [WYSIWYG],
@@ -112,6 +147,9 @@ export default {
                 return this.pageGroups
             }
             return this.getPageGroups()
+        },
+        currentEditorPath () {
+            return editorPath.value || ''
         }
     },
     mounted () {
@@ -257,6 +295,30 @@ export default {
                 pageGroupWidgets[group.id] = this.getGroupWidgets(group.id)
             }
             this.pageGroupWidgets = pageGroupWidgets
+        },
+        onWidgetDrop ({ widgetType, groupId, index }) {
+            this.pushUndoSnapshot()
+            const defaults = this.$store.getters['widgetTypes/getType'](widgetType)
+            const defValues = {}
+            if (defaults?.defaults) {
+                for (const [key, config] of Object.entries(defaults.defaults)) {
+                    defValues[key] = config.value
+                }
+            }
+            this.$store.dispatch('wysiwyg/addWidget', {
+                type: widgetType,
+                group: groupId,
+                name: defValues.name || widgetType.replace('ui-', ''),
+                order: index,
+                height: defValues.height || 1,
+                width: defValues.width || 3,
+                props: defValues
+            }).then((newWidget) => {
+                this.$store.dispatch('designer/selectWidget', { id: newWidget.id, widgetType })
+                this.updateEditStateObjects()
+            }).catch((error) => {
+                console.error('Error adding widget from palette:', error)
+            })
         }
     }
 }

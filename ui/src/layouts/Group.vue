@@ -18,14 +18,25 @@
                 <v-btn v-tooltip:bottom="'Add Spacer'" icon="mdi-card-plus-outline" size="small" variant="text" class="nrdb-resizable--toolbar-button" @click="addSpacer" />
             </div>
         </div>
+        <!-- Designer drop zone before first widget -->
+        <div
+            v-if="designerEnabled && designerDragActive"
+            class="designer-group-dropzone"
+            @dragover.prevent="onDesignerDragOver($event)"
+            @dragleave="designerDropHover = false"
+            @drop.prevent="onDesignerDrop($event, 0)"
+        >
+            <div class="designer-group-dropzone__indicator" :class="{ 'active': designerDropHover }" />
+        </div>
         <div
             v-for="(w, $index) in widgets"
             :id="'nrdb-ui-widget-' + w.id"
             :key="w.id"
             :draggable="resizable"
             class="nrdb-ui-widget"
-            :class="getWidgetClass(w)"
-            :style="[{display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)', 'gap': 'var(--widget-gap)'}, widgetStyles(w)]"
+            :class="[getWidgetClass(w), { 'designer-widget-selected': designerEnabled && isWidgetSelected(w.id) }]"
+            :style="[{display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)', 'gap': 'var(--widget-gap)', 'position': 'relative'}, widgetStyles(w)]"
+            @click.stop="designerEnabled ? onWidgetClick(w) : null"
             @dragstart="!resizable ? null : onWidgetDragStart($event, $index, w)"
             @dragover="!resizable ? null : onWidgetDragOver($event, $index, w)"
             @dragend="!resizable ? null : onWidgetDragEnd($event, $index, w)"
@@ -33,8 +44,20 @@
             @drop.prevent
             @dragenter.prevent
         >
-            <!-- <div style="font-size: small; background-color: aquamarine;">w.props.height: {{ w.props.height }}</div> -->
             <component :is="w.component" :id="w.id" ref="widget-content" :props="w.props" :state="w.state" :style="`grid-row-end: span ${w.props.height}`" />
+            <!-- Designer selection outline -->
+            <div v-if="designerEnabled && isWidgetSelected(w.id)" class="designer-selection-border">
+                <div class="designer-selection-badge">{{ getWidgetTypeLabel(w) }}</div>
+                <v-btn
+                    v-tooltip:bottom="'Delete Widget (Del)'"
+                    class="designer-selection-delete"
+                    icon="mdi-delete-outline"
+                    size="x-small"
+                    variant="flat"
+                    color="error"
+                    @click.stop="removeWidget(w)"
+                />
+            </div>
             <div
                 v-if="resizable && !groupDragging" ref="widget-resize-view"
                 class="nrdb-resizable nrdb-resizable-widget"
@@ -42,9 +65,9 @@
                 style="z-index: 100; min-width: 28px; min-height: 28px;"
                 :style="widgetResizing.widgetId === w.id ? getWidgetEditingStyle(w) : null"
             >
-                <!-- Delete Spacer button -->
-                <div v-if="w.type === 'ui-spacer'" class="nrdb-resizable--toolbar">
-                    <v-btn v-tooltip:bottom="'Delete Spacer'" icon="mdi-card-minus-outline" size="small" variant="text" class="nrdb-resizable--toolbar-button" @click="removeWidget(w)" />
+                <!-- Delete Widget button (spacers or designer-enabled) -->
+                <div v-if="w.type === 'ui-spacer' || designerEnabled" class="nrdb-resizable--toolbar">
+                    <v-btn v-tooltip:bottom="'Delete Widget'" icon="mdi-card-minus-outline" size="small" variant="text" class="nrdb-resizable--toolbar-button" @click="removeWidget(w)" />
                 </div>
                 <div
                     draggable="true"
@@ -99,20 +122,28 @@ export default {
             type: Boolean,
             default: false
         },
+        designerEnabled: {
+            type: Boolean,
+            default: false
+        },
         groupDragging: {
             type: Boolean,
             default: false
         }
     },
-    emits: ['resize', 'widget-added', 'widget-removed', 'refresh-state-from-store'],
+    emits: ['resize', 'widget-added', 'widget-removed', 'widget-drop', 'refresh-state-from-store'],
     data () {
         return {
-            localWidgets: null
+            localWidgets: null,
+            designerDropHover: false
         }
     },
     computed: {
         columns () {
             return this.groupResizing.current.columns > 0 ? this.groupResizing.current.columns : +this.group.width
+        },
+        designerDragActive () {
+            return this.$store?.getters['designer/isDragging'] || false
         },
         widgetStyles () {
             return (widget) => {
@@ -204,12 +235,46 @@ export default {
             if (typeof this.pushUndoSnapshot === 'function') {
                 this.pushUndoSnapshot()
             }
+            // Clear selection if removing selected widget
+            if (this.designerEnabled && this.isWidgetSelected(widget.id)) {
+                this.$store.dispatch('designer/clearSelection')
+            }
             this.$store.dispatch('wysiwyg/removeWidget', { id: widget.id }).then(() => {
                 console.log('Widget removed')
                 this.$emit('widget-removed', { widget })
             }).catch((error) => {
                 console.error('Error deleting widget:', error)
             })
+        },
+        // Designer methods
+        isWidgetSelected (widgetId) {
+            return this.$store?.getters['designer/selectedWidgetId'] === widgetId
+        },
+        onWidgetClick (widget) {
+            this.$store.dispatch('designer/selectWidget', { id: widget.id, widgetType: widget.type })
+        },
+        getWidgetTypeLabel (widget) {
+            const typeInfo = this.$store?.getters['widgetTypes/getType']?.(widget.type)
+            return typeInfo?.label || widget.type
+        },
+        onDesignerDragOver (event) {
+            event.dataTransfer.dropEffect = 'copy'
+            this.designerDropHover = true
+        },
+        onDesignerDrop (event, index) {
+            this.designerDropHover = false
+            try {
+                const data = JSON.parse(event.dataTransfer.getData('application/x-designer-widget'))
+                if (data && data.source === 'palette' && data.widgetType) {
+                    this.$emit('widget-drop', {
+                        widgetType: data.widgetType,
+                        groupId: this.group.id,
+                        index
+                    })
+                }
+            } catch (e) {
+                // Not a valid designer drag
+            }
         }
     }
 }
@@ -217,4 +282,55 @@ export default {
 
 <style scoped lang="scss">
 @use './wysiwyg/resizable.scss' as *;
+
+/* Designer widget selection */
+.designer-widget-selected {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 1px;
+    border-radius: 2px;
+}
+.designer-selection-border {
+    position: absolute;
+    inset: -2px;
+    pointer-events: none;
+    z-index: 50;
+}
+.designer-selection-badge {
+    position: absolute;
+    bottom: -2px;
+    left: 4px;
+    transform: translateY(100%);
+    font-size: 0.625rem;
+    padding: 1px 6px;
+    border-radius: 2px;
+    background-color: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+    white-space: nowrap;
+}
+.designer-selection-delete {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    transform: translateY(-100%);
+    pointer-events: auto;
+    z-index: 51;
+}
+
+/* Designer drop zone */
+.designer-group-dropzone {
+    grid-column: 1 / -1;
+    padding: 2px 4px;
+}
+.designer-group-dropzone__indicator {
+    height: 32px;
+    border: 2px dashed rgba(var(--v-theme-primary), 0.3);
+    border-radius: 4px;
+    background-color: rgba(var(--v-theme-primary), 0.03);
+    transition: all 0.15s ease;
+}
+.designer-group-dropzone__indicator.active {
+    height: 48px;
+    border-color: rgb(var(--v-theme-primary));
+    background-color: rgba(var(--v-theme-primary), 0.08);
+}
 </style>

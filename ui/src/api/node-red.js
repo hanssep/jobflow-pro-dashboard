@@ -64,5 +64,19 @@ export default {
             headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
             data: { dashboard, page, key, changes }
         })
+    },
+    /**
+     * Fetch available widget types from the server
+     * @param {Object} options
+     * @param {string} options.dashboard - The dashboard id
+     * @param {string} [options.editorPath] - The node-red editor path
+     * @returns the axios request
+     */
+    fetchWidgetTypes: async function fetchWidgetTypes ({ dashboard, editorPath }) {
+        return axios.request({
+            method: 'GET',
+            url: getDashboardApiUrl(editorPath || '', dashboard, 'widget-types'),
+            headers: applyAuth({}, editorPath)
+        })
     }
 }

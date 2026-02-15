@@ -219,6 +219,29 @@ const mutations = {
         for (const prop in config) {
             state[item + 's'][itemId][prop] = config[prop]
         }
+    },
+    ADD_WIDGET (state, widget) {
+        if (!state.widgets) {
+            state.widgets = {}
+        }
+        state.widgets[widget.id] = widget
+    },
+    REMOVE_WIDGET (state, widgetId) {
+        if (state.widgets && state.widgets[widgetId]) {
+            delete state.widgets[widgetId]
+        }
+    },
+    UPDATE_WIDGET_PROPS (state, { widgetId, props }) {
+        if (state.widgets && state.widgets[widgetId]) {
+            const widget = state.widgets[widgetId]
+            for (const key in props) {
+                widget.props[key] = props[key]
+                // Keep layout in sync for layout properties
+                if ((key === 'width' || key === 'height' || key === 'order') && widget.layout) {
+                    widget.layout[key] = props[key]
+                }
+            }
+        }
     }
 }
 

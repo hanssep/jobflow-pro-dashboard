@@ -168,9 +168,6 @@ export default {
                     continue // skip widgets that are not in a group we are tracking
                 }
                 if (!widget) {
-                    if (originalWidget.type !== 'ui-spacer') {
-                        throw new Error('Only spacers can be removed')
-                    }
                     const removeWidget = {
                         __DB2_REMOVE_WIDGET: true,
                         id: originalWidget.id,

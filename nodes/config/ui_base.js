@@ -8,6 +8,8 @@ const datastore = require('../store/data.js')
 const statestore = require('../store/state.js')
 const { appendTopic, addConnectionCredentials, getThirdPartyWidgets } = require('../utils/index.js')
 
+let designerApi = null
+
 // from: https://stackoverflow.com/a/28592528/3016654
 function join (...paths) {
     return paths.map(function (element) {
@@ -45,6 +47,9 @@ module.exports = function (RED) {
 
     datastore.setConfig(RED)
     statestore.setConfig(RED)
+
+    // Initialize designer API
+    designerApi = require('./ui_designer_api.js')(RED)
 
     /**
      * @typedef {import('socket.io').Socket} Socket
@@ -1275,8 +1280,8 @@ module.exports = function (RED) {
         }
 
         for (const added of addedWidgets) {
-            // for now, only ui-spacer is supported
-            if (added.type !== 'ui-spacer') {
+            // allow any registered ui-* widget type
+            if (!added.type || !added.type.startsWith('ui-')) {
                 return res.status(400).json({ error: 'Cannot add this kind of widget' })
             }
 
@@ -1287,8 +1292,8 @@ module.exports = function (RED) {
             }
         }
         for (const removed of removedWidgets) {
-            // for now, only ui-spacer is supported
-            if (removed.type !== 'ui-spacer') {
+            // allow removing any ui-* widget type added via designer
+            if (!removed.type || !removed.type.startsWith('ui-')) {
                 return res.status(400).json({ error: 'Cannot remove this kind of widget' })
             }
         }
@@ -1358,17 +1363,18 @@ module.exports = function (RED) {
             for (const modified of updatedWidgets) {
                 const current = flows.find(n => n.id === modified.id)
                 if (!current) {
-                    // widget not found in current flows! integrity of data suspect! Has flows changed on the server?
                     return res.status(400).json({ error: 'Widget not found', code: 'WIDGET_NOT_FOUND' })
                 }
                 if (modified.group !== current.group) {
-                    // integrity of data suspect! Has flow changed on the server?
-                    // Currently we dont support moving widgets between groups
                     return res.status(400).json({ error: 'Invalid group id', code: 'INVALID_GROUP_ID' })
                 }
-                changeResult.push(applyIfDifferent(current, modified, 'order'))
-                changeResult.push(applyIfDifferent(current, modified, 'width'))
-                changeResult.push(applyIfDifferent(current, modified, 'height'))
+                // Apply all widget properties (designer supports full property editing)
+                const skipKeys = new Set(['id', 'type', 'z', 'wires', 'd', 'g', '_users'])
+                for (const key of Object.keys(modified)) {
+                    if (!skipKeys.has(key)) {
+                        changeResult.push(applyIfDifferent(current, modified, key))
+                    }
+                }
             }
 
             // scan through the added widgets
@@ -1378,17 +1384,21 @@ module.exports = function (RED) {
                     // widget already exists in current flows! integrity of data suspect! Has flows changed on the server?
                     return res.status(400).json({ error: 'Widget already exists', code: 'WIDGET_ALREADY_EXISTS' })
                 }
-                // sanitize the added widget (NOTE: only ui-spacer is supported for now & these are the only properties we care about)
-                const newWidget = {
-                    id: added.id,
-                    type: added.type,
-                    group: added.group,
-                    name: added.name || '',
-                    order: added.order ?? 0,
-                    width: added.width ?? 1,
-                    height: added.height ?? 1,
-                    className: added.className || ''
+                // Sanitize the added widget — include all properties except internal fields
+                const internalKeys = new Set(['__DB2_ADD_WIDGET', '__DB2_REMOVE_WIDGET', '_users'])
+                const newWidget = { id: added.id, type: added.type }
+                for (const key of Object.keys(added)) {
+                    if (!internalKeys.has(key) && key !== 'id' && key !== 'type') {
+                        newWidget[key] = added[key]
+                    }
                 }
+                // Ensure required fields have defaults
+                newWidget.group = newWidget.group || ''
+                newWidget.name = newWidget.name || ''
+                newWidget.order = newWidget.order ?? 0
+                newWidget.width = newWidget.width ?? 1
+                newWidget.height = newWidget.height ?? 1
+                newWidget.className = newWidget.className || ''
                 flows.push(newWidget)
                 changeResult.push(true)
             }
