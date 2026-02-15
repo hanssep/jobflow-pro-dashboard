@@ -294,6 +294,9 @@
                     handle: '.node-input-column-handle',
                     cursor: 'move'
                 })
+
+                // Initialize collapsible sections
+                nrdbInitSections('ui-table')
             },
             oneditsave: function () {
                 const columns = $('#node-input-column-container').children()
@@ -346,62 +349,92 @@
         <label for="node-input-label"><i class="fa fa-i-cursor"></i> <span data-i18n="ui-table.label.label"></span></label>
         <input type="text" id="node-input-label" data-i18n="[placeholder]ui-table.label.optionalTableTitle">
     </div>
-    <div class="form-row" id="text-row-class">
-        <label for="node-input-className"><i class="fa fa-code"></i> <span data-i18n="ui-table.label.className"></span></label>
-        <input type="text" id="node-input-className" data-i18n="[placeholder]ui-table.label.classNamePlaceholder"/>
-    </div>
     <div class="form-row">
         <label for="node-input-maxrows"><i class="fa fa-tag"></i> <span data-i18n="ui-table.label.maxRows"></label>
         <input type="number" id="node-input-maxrows">
     </div>
-    <div class="form-row">
-        <label for="node-input-action" data-i18n="ui-table.label.action"></label></label>
-        <select id="node-input-action">
-            <option value="append" data-i18n="ui-table.label.append"></option>
-            <option value="replace" data-i18n="ui-table.label.replace"></option>
-        </select>
-    </div>
-    <div class="form-row">
-        <label for="node-input-mobileBreakpoint"><i class="fa fa-mobile"></i> <span data-i18n="ui-table.label.mobileBreakpoint"></label>
-        <input type="text" id="node-input-mobileBreakpoint">
-        <input type="hidden" id="node-input-mobileBreakpointType">
-    </div>
-    <div class="form-row">
-        <label for="node-input-selectionType"><i class="fa fa-crosshairs"></i> <span data-i18n="ui-table.label.selection"></span></label>
-        <select id="node-input-selectionType">
-            <option value="none" data-i18n="ui-table.selection.none"></option>
-            <option value="click" data-i18n="ui-table.selection.click"></option>
-            <option value="checkbox" data-i18n="ui-table.selection.checkbox"></option>
-        </select>
-    </div>
-    <div class="form-row form-row-flex">
-        <label for="node-input-showSearch"><i class="fa fa-search"></i> <span data-i18n="ui-table.label.search"></label>
-        <div style="margin-bottom: 0px; width:calc(70% + 15px);">
-            <input type="checkbox" id="node-input-showSearch" style="display: inline-block; width: auto;">
-            <label  for="node-input-showSearch" data-i18n="ui-table.label.showSearch"></label>
+    <!-- Table Settings Section -->
+    <div class="nrdb-section expanded" data-section-id="table-settings" data-default-expanded="true">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Table Settings
+            <span class="nrdb-section-error-dot"></span>
         </div>
-    </div>
-    <div class="form-row form-row-flex">
-        <label for="node-input-autocols"><i class="fa fa-list-alt"></i> <span data-i18n="ui-table.label.columns"></label>
-        <div style="margin-bottom: 0px; width:calc(70% + 15px);">
-            <input type="checkbox" checked id="node-input-autocols" style="display: inline-block; width: auto;">
-            <label for="node-input-autocols" data-i18n="ui-table.label.autoCalculateColumns"></label>
-        </div>
-    </div>
-    <div class="form-row" style="display:flex; margin-bottom: 3px;">
-        <label for="node-input-deselect" style="vertical-align:top"><i class="fa fa-mouse-pointer"></i> <span data-i18n="ui-table.label.deselect"></label>
-        <div>
-            <input type="checkbox" checked id="node-input-deselect" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
-            <label style="width:auto" for="node-input-deselect" data-i18n="ui-table.label.deselectRows"></label>
-        </div>
-    </div>
-    <div class="form-row">
-        <div class="form-row node-input-column-container-row">
-            <div id="node-input-columns-container">
-                <div id="node-input-column-container-div" style="box-sizing:border-box; border-radius:5px; padding:5px; border:1px solid var(--red-ui-form-input-border-color, #ccc); overflow-y:scroll; display:inline-block; width: 100%;">
-                    <ol id="node-input-column-container" style="list-style-type:none; margin:0;"></ol>
+        <div class="nrdb-section-body">
+            <div class="form-row">
+                <label for="node-input-action" data-i18n="ui-table.label.action"></label></label>
+                <select id="node-input-action">
+                    <option value="append" data-i18n="ui-table.label.append"></option>
+                    <option value="replace" data-i18n="ui-table.label.replace"></option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="node-input-selectionType"><i class="fa fa-crosshairs"></i> <span data-i18n="ui-table.label.selection"></span></label>
+                <select id="node-input-selectionType">
+                    <option value="none" data-i18n="ui-table.selection.none"></option>
+                    <option value="click" data-i18n="ui-table.selection.click"></option>
+                    <option value="checkbox" data-i18n="ui-table.selection.checkbox"></option>
+                </select>
+            </div>
+            <div class="form-row form-row-flex">
+                <label for="node-input-showSearch"><i class="fa fa-search"></i> <span data-i18n="ui-table.label.search"></label>
+                <div style="margin-bottom: 0px; width:calc(70% + 15px);">
+                    <input type="checkbox" id="node-input-showSearch" style="display: inline-block; width: auto;">
+                    <label  for="node-input-showSearch" data-i18n="ui-table.label.showSearch"></label>
                 </div>
-                <a href="#" class="editor-button editor-button-small" id="node-input-add-column" style="margin-top:4px;"><i class="fa fa-plus"></i> <span data-i18n="ui-table.label.columns"></span></a>
+            </div>
+            <div class="form-row" style="display:flex; margin-bottom: 3px;">
+                <label for="node-input-deselect" style="vertical-align:top"><i class="fa fa-mouse-pointer"></i> <span data-i18n="ui-table.label.deselect"></label>
+                <div>
+                    <input type="checkbox" checked id="node-input-deselect" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
+                    <label style="width:auto" for="node-input-deselect" data-i18n="ui-table.label.deselectRows"></label>
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="node-input-mobileBreakpoint"><i class="fa fa-mobile"></i> <span data-i18n="ui-table.label.mobileBreakpoint"></label>
+                <input type="text" id="node-input-mobileBreakpoint">
+                <input type="hidden" id="node-input-mobileBreakpointType">
+            </div>
+        </div>
+    </div>
+    <!-- Columns Section -->
+    <div class="nrdb-section expanded" data-section-id="columns" data-default-expanded="true">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Columns
+            <span class="nrdb-section-error-dot"></span>
+        </div>
+        <div class="nrdb-section-body">
+            <div class="form-row form-row-flex">
+                <label for="node-input-autocols"><i class="fa fa-list-alt"></i> <span data-i18n="ui-table.label.columns"></label>
+                <div style="margin-bottom: 0px; width:calc(70% + 15px);">
+                    <input type="checkbox" checked id="node-input-autocols" style="display: inline-block; width: auto;">
+                    <label for="node-input-autocols" data-i18n="ui-table.label.autoCalculateColumns"></label>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-row node-input-column-container-row">
+                    <div id="node-input-columns-container">
+                        <div id="node-input-column-container-div" style="box-sizing:border-box; border-radius:5px; padding:5px; border:1px solid var(--red-ui-form-input-border-color, #ccc); overflow-y:scroll; display:inline-block; width: 100%;">
+                            <ol id="node-input-column-container" style="list-style-type:none; margin:0;"></ol>
+                        </div>
+                        <a href="#" class="editor-button editor-button-small" id="node-input-add-column" style="margin-top:4px;"><i class="fa fa-plus"></i> <span data-i18n="ui-table.label.columns"></span></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Appearance Section -->
+    <div class="nrdb-section" data-section-id="appearance" data-default-expanded="false">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Appearance
+            <span class="nrdb-section-error-dot"></span>
+        </div>
+        <div class="nrdb-section-body">
+            <div class="form-row" id="text-row-class">
+                <label for="node-input-className"><i class="fa fa-code"></i> <span data-i18n="ui-table.label.className"></span></label>
+                <input type="text" id="node-input-className" data-i18n="[placeholder]ui-table.label.classNamePlaceholder"/>
             </div>
         </div>
     </div>

@@ -107,6 +107,9 @@
                 if (!this.iconInnerPosition) {
                     $('#node-input-iconInnerPosition').val('inside')
                 }
+
+                // Initialize collapsible sections
+                nrdbInitSections('ui-text-input')
             },
             label: function () {
                 return this.name || (~this.label.indexOf('{' + '{') ? null : this.label) || this.mode + ' input'
@@ -163,19 +166,6 @@
         <label for="node-input-tooltip"><i class="fa fa-info"></i> <span data-i18n="ui-text-input.label.tooltip"></span></label>
         <input type="text" id="node-input-tooltip">
     </div>
-    <div class="form-row">
-        <label for="node-input-className"><i class="fa fa-code"></i> <span data-i18n="ui-text-input.label.class"></span></label>
-        <div style="display: inline;">
-            <input style="width: 70%;" type="text" id="node-input-className" data-i18n="[placeholder]ui-text-input.label.classNamePlaceholder" style="flex-grow: 1;">
-            <a
-                data-html="true"
-                data-i18n="[title]ui-text-input.tooltip.dynamicProperty"
-                class="red-ui-button ui-node-popover-title"
-                style="margin-left: 4px; cursor: help; font-size: 0.625rem; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center;">
-                <i style="font-family: ui-serif;">fx</i>
-            </a>
-        </div>
-    </div>
     <div class="form-row form-row-flex">
         <label for="node-input-mode"><i class="fa fa-keyboard-o"></i> <span data-i18n="ui-text-input.label.mode"></span></label>
         <select id="node-input-mode">
@@ -192,47 +182,90 @@
             <option value="month" data-i18n="ui-text-input.option.month"></option>
         </select>
     </div>
-    <div class="form-row">
-        <label style="width:auto" for="node-input-passthru"><i class="fa fa-arrow-right"></i> <span data-i18n="[html]ui-text-input.label.passThrough"></span></label>
-        <input type="checkbox" checked id="node-input-passthru" style="display:inline-block; width:auto; margin-top: 0; margin-left: 3px;">
-    </div>
-    <div class="form-row">
-        <label style="width:auto" for="node-input-clearable"><i class="fa fa-times"></i> <span data-i18n="ui-text-input.label.clearable"></span></label>
-        <input type="checkbox" checked id="node-input-clearable" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
-    </div>    
-    <div class="form-row">
-        <label style="width:auto" for="node-input-payload"><i class="fa fa-clock-o"></i> <span data-i18n="ui-text-input.label.sendMessageOn"></span></label>
-    </div>
-    <div class="form-row form-row-flex" style="padding-left: 25px; align-items: center;">
-        <input type="checkbox" checked id="node-input-sendOnDelay" style="display:inline-block; width:auto; vertical-align:top;">
-        <label style="width:auto" for="node-input-sendOnDelay"> <span data-i18n="ui-text-input.label.delay"></span></label>
-        <div id="node-input-delay-box">
-            <input type="text" style="width:58px" id="node-input-delay">
-            <label for="node-input-delay"><span data-i18n="ui-text-input.label.delayUnit"></span></label>
+    <!-- Behavior Section -->
+    <div class="nrdb-section expanded" data-section-id="behavior" data-default-expanded="true">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Behavior
+            <span class="nrdb-section-error-dot"></span>
+        </div>
+        <div class="nrdb-section-body">
+            <div class="form-row">
+                <label style="width:auto" for="node-input-passthru"><i class="fa fa-arrow-right"></i> <span data-i18n="[html]ui-text-input.label.passThrough"></span></label>
+                <input type="checkbox" checked id="node-input-passthru" style="display:inline-block; width:auto; margin-top: 0; margin-left: 3px;">
+            </div>
+            <div class="form-row">
+                <label style="width:auto" for="node-input-clearable"><i class="fa fa-times"></i> <span data-i18n="ui-text-input.label.clearable"></span></label>
+                <input type="checkbox" checked id="node-input-clearable" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
+            </div>
+            <div class="form-row">
+                <label style="width:auto" for="node-input-payload"><i class="fa fa-clock-o"></i> <span data-i18n="ui-text-input.label.sendMessageOn"></span></label>
+            </div>
+            <div class="form-row form-row-flex" style="padding-left: 25px; align-items: center;">
+                <input type="checkbox" checked id="node-input-sendOnDelay" style="display:inline-block; width:auto; vertical-align:top;">
+                <label style="width:auto" for="node-input-sendOnDelay"> <span data-i18n="ui-text-input.label.delay"></span></label>
+                <div id="node-input-delay-box">
+                    <input type="text" style="width:58px" id="node-input-delay">
+                    <label for="node-input-delay"><span data-i18n="ui-text-input.label.delayUnit"></span></label>
+                </div>
+            </div>
+            <div class="form-row" style="padding-left: 25px;">
+                <input type="checkbox" checked id="node-input-sendOnBlur" style="display:inline-block; width:auto; vertical-align:top;">
+                <label style="width:auto" for="node-input-sendOnBlur"> <span data-i18n="ui-text-input.label.focusLeave"></span></label>
+            </div>
+            <div id="node-input-container-sendOnEnter" class="form-row" style="padding-left: 25px;">
+                <input type="checkbox" checked id="node-input-sendOnEnter" style="display:inline-block; width:auto; vertical-align:top;">
+                <label style="width:auto" for="node-input-sendOnEnter"> <span data-i18n="ui-text-input.label.pressEnter"></span></label>
+            </div>
+            <div id="node-input-container-sendOnClear" class="form-row" style="padding-left: 25px;">
+                <input type="checkbox" checked id="node-input-sendOnClear" style="display:inline-block; width:auto; vertical-align:top;">
+                <label style="width:auto" for="node-input-sendOnClear"> <span data-i18n="ui-text-input.label.clearButton"></span></label>
+            </div>
         </div>
     </div>
-    <div class="form-row" style="padding-left: 25px;">
-        <input type="checkbox" checked id="node-input-sendOnBlur" style="display:inline-block; width:auto; vertical-align:top;">
-        <label style="width:auto" for="node-input-sendOnBlur"> <span data-i18n="ui-text-input.label.focusLeave"></span></label>
+    <!-- Output Section -->
+    <div class="nrdb-section expanded" data-section-id="output" data-default-expanded="true">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Output
+            <span class="nrdb-section-error-dot"></span>
+        </div>
+        <div class="nrdb-section-body">
+            <div class="form-row">
+                <label style="width:auto" for="node-input-payload"><i class="fa fa-envelope-o"></i> <span data-i18n="ui-text-input.label.whenChanged"></span></label>
+            </div>
+            <div class="form-row" style="padding-left: 25px;">
+                <label style="margin-right: -25px" data-i18n="ui-text-input.label.payload"></label>
+                <label style="width:auto" data-i18n="ui-text-input.label.currentValue"></label>
+            </div>
+            <div class="form-row" style="padding-left: 25px;">
+                <label for="node-input-topic" style="margin-right:-25px" data-i18n="ui-text-input.label.topic"></label>
+                <input type="text" id="node-input-topic">
+                <input type="hidden" id="node-input-topicType">
+            </div>
+        </div>
     </div>
-    <div id="node-input-container-sendOnEnter" class="form-row" style="padding-left: 25px;">
-        <input type="checkbox" checked id="node-input-sendOnEnter" style="display:inline-block; width:auto; vertical-align:top;">
-        <label style="width:auto" for="node-input-sendOnEnter"> <span data-i18n="ui-text-input.label.pressEnter"></span></label>
-    </div>
-    <div id="node-input-container-sendOnClear" class="form-row" style="padding-left: 25px;">
-        <input type="checkbox" checked id="node-input-sendOnClear" style="display:inline-block; width:auto; vertical-align:top;">
-        <label style="width:auto" for="node-input-sendOnClear"> <span data-i18n="ui-text-input.label.clearButton"></span></label>
-    </div>
-    <div class="form-row">
-        <label style="width:auto" for="node-input-payload"><i class="fa fa-envelope-o"></i> <span data-i18n="ui-text-input.label.whenChanged"></span></label>
-    </div>
-    <div class="form-row" style="padding-left: 25px;">
-        <label style="margin-right: -25px" data-i18n="ui-text-input.label.payload"></label>
-        <label style="width:auto" data-i18n="ui-text-input.label.currentValue"></label>
-    </div>
-    <div class="form-row" style="padding-left: 25px;">
-        <label for="node-input-topic" style="margin-right:-25px" data-i18n="ui-text-input.label.topic"></label>
-        <input type="text" id="node-input-topic">
-        <input type="hidden" id="node-input-topicType">
+    <!-- Appearance Section -->
+    <div class="nrdb-section" data-section-id="appearance" data-default-expanded="false">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Appearance
+            <span class="nrdb-section-error-dot"></span>
+        </div>
+        <div class="nrdb-section-body">
+            <div class="form-row">
+                <label for="node-input-className"><i class="fa fa-code"></i> <span data-i18n="ui-text-input.label.class"></span></label>
+                <div style="display: inline;">
+                    <input style="width: 70%;" type="text" id="node-input-className" data-i18n="[placeholder]ui-text-input.label.classNamePlaceholder" style="flex-grow: 1;">
+                    <a
+                        data-html="true"
+                        data-i18n="[title]ui-text-input.tooltip.dynamicProperty"
+                        class="red-ui-button ui-node-popover-title"
+                        style="margin-left: 4px; cursor: help; font-size: 0.625rem; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center;">
+                        <i style="font-family: ui-serif;">fx</i>
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </script>

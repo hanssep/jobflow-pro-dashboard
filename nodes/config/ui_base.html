@@ -260,10 +260,117 @@
     ol.nrdb2-sb-group-list li:last-child ol.nrdb2-sb-widget-list.red-ui-editableList-list.ui-sortable:empty {
         border-bottom-width: 0px;
     }
+
+    /* Collapsible Sections for Widget Editors */
+    .nrdb-section {
+        border: 1px solid var(--red-ui-primary-border-color, #ccc);
+        border-radius: 4px;
+        margin-bottom: 8px;
+    }
+    .nrdb-section-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+        background: var(--red-ui-secondary-background, #f7f7f7);
+        border-bottom: 1px solid transparent;
+        user-select: none;
+        font-weight: 500;
+        font-size: 13px;
+    }
+    .nrdb-section-header:hover {
+        background: var(--red-ui-secondary-background-hover, #eee);
+    }
+    .nrdb-section.expanded > .nrdb-section-header {
+        border-bottom-color: var(--red-ui-primary-border-color, #ccc);
+    }
+    .nrdb-section-chevron {
+        transition: transform 0.2s ease;
+        font-size: 10px;
+        color: var(--red-ui-secondary-text-color, #888);
+    }
+    .nrdb-section.expanded > .nrdb-section-header > .nrdb-section-chevron {
+        transform: rotate(90deg);
+    }
+    .nrdb-section-body {
+        display: none;
+        padding: 8px 10px 2px;
+    }
+    .nrdb-section.expanded > .nrdb-section-body {
+        display: block;
+    }
+    .nrdb-section-body > .form-row:last-child {
+        margin-bottom: 6px;
+    }
+    .nrdb-section-error-dot {
+        display: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--red-ui-text-color-error, #d00);
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+    .nrdb-section-has-error > .nrdb-section-header > .nrdb-section-error-dot {
+        display: block;
+    }
 </style>
 
 
 <script type="text/javascript">
+// Collapsible sections utility for widget editor dialogs
+window.nrdbInitSections = function (nodeType) {
+    const storageKey = 'nrdb-sections-' + nodeType
+    let states = {}
+    try { states = JSON.parse(localStorage.getItem(storageKey)) || {} } catch (e) { /* ignore */ }
+
+    $('.nrdb-section').each(function () {
+        const $section = $(this)
+        const id = $section.attr('data-section-id')
+        if (!id) return
+
+        // Restore persisted state, fall back to data-default-expanded attribute
+        const defaultExpanded = $section.attr('data-default-expanded') !== 'false'
+        const isExpanded = states[id] !== undefined ? states[id] : defaultExpanded
+        $section.toggleClass('expanded', isExpanded)
+
+        $section.find('> .nrdb-section-header').on('click', function () {
+            const expanding = !$section.hasClass('expanded')
+            $section.toggleClass('expanded', expanding)
+
+            // Persist state
+            states[id] = expanding
+            try { localStorage.setItem(storageKey, JSON.stringify(states)) } catch (e) { /* ignore */ }
+
+            // Trigger resize on typedInput widgets so they recalculate width
+            if (expanding) {
+                $section.find('.red-ui-typedInput-container').each(function () {
+                    const $input = $(this).find('input.red-ui-typedInput')
+                    if ($input.length && $input.typedInput) {
+                        try { $input.typedInput('width', $input.typedInput('width')) } catch (e) { /* ignore */ }
+                    }
+                })
+            }
+        })
+    })
+
+    // Validation error indicators: check for input-error class inside collapsed sections
+    const checkErrors = function () {
+        $('.nrdb-section').each(function () {
+            const $section = $(this)
+            const hasError = $section.find('.nrdb-section-body .input-error').length > 0
+            $section.toggleClass('nrdb-section-has-error', hasError && !$section.hasClass('expanded'))
+        })
+    }
+    // Check errors periodically while editor is open (covers async validation)
+    const errorInterval = setInterval(checkErrors, 500)
+    // Clean up when editor closes
+    $(document).one('editableListResort close', function () { clearInterval(errorInterval) })
+    // Also run once immediately
+    checkErrors()
+}
+
 // #region typedefs for intellisense and better code completion/DX
 
 /**

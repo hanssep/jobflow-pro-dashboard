@@ -145,6 +145,9 @@
                         delay: 150
                     }
                 })
+
+                // Initialize collapsible sections
+                nrdbInitSections('ui-dropdown')
             },
             oneditsave: function () {
                 const options = $('#node-input-option-container').children()
@@ -201,71 +204,96 @@
         <label for="node-input-label"><i class="fa fa-tag"></i> <span data-i18n="ui-dropdown.label.label"></span></label>
         <input type="text" id="node-input-label" data-i18n="[placeholder]ui-dropdown.label.labelPlaceholder">
     </div>
-    <div class="form-row">
-        <label for="node-input-className"><i class="fa fa-code"></i> <span data-i18n="ui-dropdown.label.class"></span></label>
-        <div style="display: inline;">
-            <input style="width: 70%;" type="text" id="node-input-className" data-i18n="[placeholder]ui-dropdown.label.classNamePlaceholder" style="flex-grow: 1;">
-            <a
-                data-html="true"
-                data-i18n="[title]ui-dropdown.tooltip.dynamicProperty"
-                class="red-ui-button ui-node-popover-title"
-                style="margin-left: 4px; cursor: help; font-size: 0.625rem; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center;">
-                <i style="font-family: ui-serif;">fx</i>
-            </a>
+    <!-- Options Section -->
+    <div class="nrdb-section expanded" data-section-id="options" data-default-expanded="true">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Options
+            <span class="nrdb-section-error-dot"></span>
+        </div>
+        <div class="nrdb-section-body">
+            <div class="form-row form-row-flex node-input-option-container-row" style="margin-bottom: 0px;width: 100%">
+                <label for="node-input-width" style="vertical-align:top"><i class="fa fa-list-alt"></i> <span data-i18n="ui-dropdown.label.options"></span></label>
+                <div id="node-input-option-container-div" style="box-sizing:border-box; border-radius:5px; height:257px; padding:5px; border:1px solid var(--red-ui-form-input-border-color, #ccc); overflow-y:scroll; display:inline-block; width: 70%;">
+                    <span id="valWarning" style="color: var(--red-ui-text-color-error, #910000)"><b data-i18n="ui-dropdown.errors.uniqueValues"></b></span>
+                    <ol id="node-input-option-container" style="list-style-type:none; margin:0;"></ol>
+                </div>
+                <a
+                    data-html="true"
+                    data-i18n="[title]ui-dropdown.tooltip.overrideProperty"
+                    class="red-ui-button ui-node-popover-title"
+                    style="margin-left: 4px; cursor: help; font-size: 0.625rem; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center;">
+                    <i style="font-family: ui-serif;">fx</i>
+                </a>
+            </div>
+            <div class="form-row">
+                <a href="#" class="editor-button editor-button-small" id="node-input-add-option" style="margin-top:4px; margin-left:103px;"><i class="fa fa-plus"></i> <span data-i18n="ui-dropdown.label.addOption"></span></a>
+            </div>
         </div>
     </div>
-    <!--<div class="form-row">
-        <label for="node-input-tooltip"><i class="fa fa-info-circle"></i> <span data-i18n="ui-dropdown.label.tooltip"></span></label>
-        <input type="text" id="node-input-tooltip" data-i18n="[placeholder]ui-dropdown.label.tooltipPlaceholder">
-    </div>-->
-    <div class="form-row form-row-flex node-input-option-container-row" style="margin-bottom: 0px;width: 100%">
-        <label for="node-input-width" style="vertical-align:top"><i class="fa fa-list-alt"></i> <span data-i18n="ui-dropdown.label.options"></span></label>
-        <div id="node-input-option-container-div" style="box-sizing:border-box; border-radius:5px; height:257px; padding:5px; border:1px solid var(--red-ui-form-input-border-color, #ccc); overflow-y:scroll; display:inline-block; width: 70%;">
-            <span id="valWarning" style="color: var(--red-ui-text-color-error, #910000)"><b data-i18n="ui-dropdown.errors.uniqueValues"></b></span>
-            <ol id="node-input-option-container" style="list-style-type:none; margin:0;"></ol>
+    <!-- Behavior Section -->
+    <div class="nrdb-section expanded" data-section-id="behavior" data-default-expanded="true">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Behavior
+            <span class="nrdb-section-error-dot"></span>
         </div>
-        <a
-            data-html="true"
-            data-i18n="[title]ui-dropdown.tooltip.overrideProperty"
-            class="red-ui-button ui-node-popover-title"
-            style="margin-left: 4px; cursor: help; font-size: 0.625rem; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center;">
-            <i style="font-family: ui-serif;">fx</i>
-        </a>
-    </div>
-    <div class="form-row">
-        <a href="#" class="editor-button editor-button-small" id="node-input-add-option" style="margin-top:4px; margin-left:103px;"><i class="fa fa-plus"></i> <span data-i18n="ui-dropdown.label.addOption"></span></a>
-    </div>
-    <div class="form-row">
-        <label for="node-input-msgTrigger"><i class="fa fa-paper-plane"></i> <span data-i18n="ui-dropdown.label.triggerOn"></span></label>
-        <select id="node-input-msgTrigger" style="width: 70%;">
-            <option value="onChange" data-i18n="ui-dropdown.option.selectionChanged"></option>
-            <option value="onClose" data-i18n="ui-dropdown.option.dropdownClosed"></option>
-       </select>
-    </div>
-    <div class="form-row">
-        <label style="width:auto" for="node-input-multiple"><i class="fa fa-th-list"></i> <span data-i18n="ui-dropdown.label.allowMultiple"></span> </label>
-        <input type="checkbox" checked id="node-input-multiple" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
-    </div>
-    <div class="form-row">
-        <label style="width:auto" for="node-input-chips"><i class="fa fa-circle-o"></i> <span data-i18n="ui-dropdown.label.showChips"></span> </label>
-        <input type="checkbox" checked id="node-input-chips" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
-    </div>
-    <div class="form-row">
-        <label style="width:auto" for="node-input-clearable"><i class="fa fa-times"></i> <span data-i18n="ui-dropdown.label.clearable"></span> </label>
-        <input type="checkbox" checked id="node-input-clearable" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
-    </div>   
-    <div class="form-row">
-        <label style="width:auto" for="node-input-typeIsComboBox"><i class="fa fa-pencil-square"></i> <span data-i18n="ui-dropdown.label.allowSearch"></span> </label>
-        <input type="checkbox" checked id="node-input-typeIsComboBox" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
+        <div class="nrdb-section-body">
+            <div class="form-row">
+                <label for="node-input-msgTrigger"><i class="fa fa-paper-plane"></i> <span data-i18n="ui-dropdown.label.triggerOn"></span></label>
+                <select id="node-input-msgTrigger" style="width: 70%;">
+                    <option value="onChange" data-i18n="ui-dropdown.option.selectionChanged"></option>
+                    <option value="onClose" data-i18n="ui-dropdown.option.dropdownClosed"></option>
+               </select>
+            </div>
+            <div class="form-row">
+                <label style="width:auto" for="node-input-multiple"><i class="fa fa-th-list"></i> <span data-i18n="ui-dropdown.label.allowMultiple"></span> </label>
+                <input type="checkbox" checked id="node-input-multiple" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
+            </div>
+            <div class="form-row">
+                <label style="width:auto" for="node-input-chips"><i class="fa fa-circle-o"></i> <span data-i18n="ui-dropdown.label.showChips"></span> </label>
+                <input type="checkbox" checked id="node-input-chips" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
+            </div>
+            <div class="form-row">
+                <label style="width:auto" for="node-input-clearable"><i class="fa fa-times"></i> <span data-i18n="ui-dropdown.label.clearable"></span> </label>
+                <input type="checkbox" checked id="node-input-clearable" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
+            </div>
+            <div class="form-row">
+                <label style="width:auto" for="node-input-typeIsComboBox"><i class="fa fa-pencil-square"></i> <span data-i18n="ui-dropdown.label.allowSearch"></span> </label>
+                <input type="checkbox" checked id="node-input-typeIsComboBox" style="display: inline-block; width: auto; margin: 0px 0px 0px 4px;">
+            </div>
+            <div class="form-row">
+                <label style="width:auto" for="node-input-passthru"><i class="fa fa-arrow-right"></i><span data-i18n="[html]ui-dropdown.label.passThrough"></span> </label>
+                <input type="checkbox" checked id="node-input-passthru" style="display:inline-block; width:auto; vertical-align:top;">
+            </div>
         </div>
-    </div>  
-    <div class="form-row">
-        <label style="width:auto" for="node-input-passthru"><i class="fa fa-arrow-right"></i><span data-i18n="[html]ui-dropdown.label.passThrough"></span> </label>
-        <input type="checkbox" checked id="node-input-passthru" style="display:inline-block; width:auto; vertical-align:top;">
     </div>
-    <div class="form-row">
-        <label for="node-input-topic"><i class="fa fa-tasks"></i> <span data-i18n="ui-dropdown.label.topic"></span></label>
-        <input type="text" id="node-input-topic" style="width:70%" data-i18n="[placeholder]ui-dropdown.label.msgTopicPlaceholder">
-        <input type="hidden" id="node-input-topicType">
+    <!-- Output Section -->
+    <div class="nrdb-section" data-section-id="output" data-default-expanded="false">
+        <div class="nrdb-section-header">
+            <i class="fa fa-chevron-right nrdb-section-chevron"></i>
+            Output
+            <span class="nrdb-section-error-dot"></span>
+        </div>
+        <div class="nrdb-section-body">
+            <div class="form-row">
+                <label for="node-input-topic"><i class="fa fa-tasks"></i> <span data-i18n="ui-dropdown.label.topic"></span></label>
+                <input type="text" id="node-input-topic" style="width:70%" data-i18n="[placeholder]ui-dropdown.label.msgTopicPlaceholder">
+                <input type="hidden" id="node-input-topicType">
+            </div>
+            <div class="form-row">
+                <label for="node-input-className"><i class="fa fa-code"></i> <span data-i18n="ui-dropdown.label.class"></span></label>
+                <div style="display: inline;">
+                    <input style="width: 70%;" type="text" id="node-input-className" data-i18n="[placeholder]ui-dropdown.label.classNamePlaceholder" style="flex-grow: 1;">
+                    <a
+                        data-html="true"
+                        data-i18n="[title]ui-dropdown.tooltip.dynamicProperty"
+                        class="red-ui-button ui-node-popover-title"
+                        style="margin-left: 4px; cursor: help; font-size: 0.625rem; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center;">
+                        <i style="font-family: ui-serif;">fx</i>
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </script>
