@@ -26,7 +26,7 @@
                     </template>
                 </v-card>
             </div>
-            <EditControls v-if="editMode" :dirty="dirty" :saveBusy="saving" @cancel="leaveEditMode" @discard="discardEdits" @save="saveEdits" />
+            <EditControls v-if="editMode" :dirty="dirty" :saveBusy="saving" :canUndo="canUndo" @cancel="leaveEditMode" @discard="discardEdits" @save="saveEdits" @undo="undoEdit" />
         </div>
         <div>
             <!-- Render any widgets with a 'page' scope -->

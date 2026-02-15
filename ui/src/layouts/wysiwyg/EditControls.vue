@@ -1,9 +1,10 @@
 <template>
     <div class="nrdb-ui-editor-tray-container">
         <div class="nrdb-ui-editor-tray">
-            <v-btn v-tooltip="'Leave Edit Mode'" :disabled="saveBusy" variant="outlined" icon="mdi-close" color="red-darken-1" @click="cancel" />
-            <v-btn v-tooltip="'Discard Changes'" :disabled="!dirty || saveBusy" variant="outlined" color="blue" icon="mdi-arrow-u-left-top" @click="discard" />
-            <v-btn v-tooltip="'Save Changes'" :disabled="!dirty || saveBusy" variant="outlined" icon="mdi-content-save-outline" color="green" :loading="saveBusy" @click="save" />
+            <v-btn v-tooltip="'Leave Edit Mode (Esc)'" :disabled="saveBusy" variant="outlined" icon="mdi-close" color="red-darken-1" @click="cancel" />
+            <v-btn v-tooltip="'Undo (Ctrl+Z)'" :disabled="!canUndo || saveBusy" variant="outlined" color="orange" icon="mdi-undo" @click="undo" />
+            <v-btn v-tooltip="'Discard All Changes'" :disabled="!dirty || saveBusy" variant="outlined" color="blue" icon="mdi-arrow-u-left-top" @click="discard" />
+            <v-btn v-tooltip="'Save Changes (Ctrl+S)'" :disabled="!dirty || saveBusy" variant="outlined" icon="mdi-content-save-outline" color="green" :loading="saveBusy" @click="save" />
         </div>
         <div class="nrdb-edit-mode--message">In Edit Mode</div>
     </div>
@@ -20,9 +21,13 @@ export default {
         saveBusy: {
             type: Boolean,
             default: false
+        },
+        canUndo: {
+            type: Boolean,
+            default: false
         }
     },
-    emits: ['cancel', 'discard', 'save'],
+    emits: ['cancel', 'discard', 'save', 'undo'],
     methods: {
         cancel () {
             this.$emit('cancel')
@@ -32,6 +37,9 @@ export default {
         },
         save () {
             this.$emit('save')
+        },
+        undo () {
+            this.$emit('undo')
         }
     }
 }

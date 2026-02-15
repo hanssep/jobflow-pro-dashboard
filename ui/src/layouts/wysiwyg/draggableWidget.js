@@ -17,6 +17,9 @@ export default {
          * @param {Number} index - The index of the group
          */
         onWidgetDragStart (event, index, item) {
+            if (typeof this.pushUndoSnapshot === 'function') {
+                this.pushUndoSnapshot()
+            }
             this.widgetDragging.active = true
             this.widgetDragging.widgetId = item.id
             this.widgetDragging.index = index

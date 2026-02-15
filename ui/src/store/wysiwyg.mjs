@@ -7,7 +7,8 @@ import UISpacer from '../widgets/ui-spacer/UISpacer.vue'
 const state = () => ({
     originalGroups: null,
     originalWidgets: null,
-    shadowWidgets: null // this is used to store widgets that have been removed during an edit session
+    shadowWidgets: null, // this is used to store widgets that have been removed during an edit session
+    undoStack: [] // snapshots of {groups, widgets} for undo support
 })
 
 // getters
@@ -18,6 +19,9 @@ const getters = {
     },
     originalWidgets (state) {
         return state.originalWidgets
+    },
+    canUndo (state) {
+        return state.undoStack.length > 0
     },
     isDirty: (state, getters, rootState) => (pageId, groups = null, widgets = null) => {
         // when groups are passed in, they are an array of groups, convert to a key-value object
@@ -138,6 +142,19 @@ const mutations = {
     // },
     shadowWidgets (state, widgets) {
         state.shadowWidgets = widgets
+    },
+    pushUndoSnapshot (state, snapshot) {
+        state.undoStack.push(snapshot)
+        // cap at 50 snapshots to limit memory
+        if (state.undoStack.length > 50) {
+            state.undoStack.shift()
+        }
+    },
+    popUndoSnapshot (state) {
+        return state.undoStack.pop()
+    },
+    clearUndoStack (state) {
+        state.undoStack = []
     }
 }
 const actions = {
@@ -268,8 +285,76 @@ const actions = {
             }
         }
         commit('shadowWidgets', {}) // reset the shadow widgets since we have reverted the changes
+        commit('clearUndoStack') // clear undo stack since we've reverted to original
         commit('ui/widgets', uiWidgets, { root: true })
         commit('ui/groups', uiGroups, { root: true })
+    },
+    pushUndoSnapshot ({ rootState, commit }) {
+        const uiGroups = rootState.ui.groups
+        const uiWidgets = rootState.ui.widgets
+        const snapshot = {
+            groups: JSON.parse(JSON.stringify(uiGroups)),
+            widgets: {}
+        }
+        for (const key in uiWidgets) {
+            const w = uiWidgets[key]
+            snapshot.widgets[key] = {
+                id: w.id,
+                type: w.type,
+                props: { ...w.props },
+                layout: { ...w.layout }
+            }
+        }
+        commit('pushUndoSnapshot', snapshot)
+    },
+    popUndoSnapshot ({ rootState, state, commit }) {
+        if (state.undoStack.length === 0) {
+            return false
+        }
+        const snapshot = state.undoStack.pop()
+        // restore groups
+        const uiGroups = rootState.ui.groups
+        const groupPropertiesOfInterest = ['width', 'height', 'order']
+        for (const key in snapshot.groups) {
+            if (uiGroups[key]) {
+                for (const prop of groupPropertiesOfInterest) {
+                    uiGroups[key][prop] = snapshot.groups[key][prop]
+                }
+            }
+        }
+        // restore widgets
+        const uiWidgets = rootState.ui.widgets
+        const widgetPropsOfInterest = ['width', 'height', 'order', 'group']
+        const widgetLayoutOfInterest = ['width', 'height', 'order']
+        // restore existing widgets from snapshot
+        for (const key in snapshot.widgets) {
+            if (uiWidgets[key]) {
+                for (const prop of widgetPropsOfInterest) {
+                    if (snapshot.widgets[key].props[prop] !== undefined) {
+                        uiWidgets[key].props[prop] = snapshot.widgets[key].props[prop]
+                    }
+                }
+                for (const prop of widgetLayoutOfInterest) {
+                    if (snapshot.widgets[key].layout && snapshot.widgets[key].layout[prop] !== undefined) {
+                        uiWidgets[key].layout[prop] = snapshot.widgets[key].layout[prop]
+                    }
+                }
+            } else if (state.shadowWidgets[key]) {
+                // widget was removed, bring it back
+                uiWidgets[key] = state.shadowWidgets[key]
+                delete state.shadowWidgets[key]
+            }
+        }
+        // remove widgets added after snapshot
+        for (const key in uiWidgets) {
+            if (!snapshot.widgets[key]) {
+                state.shadowWidgets[key] = uiWidgets[key]
+                delete uiWidgets[key]
+            }
+        }
+        commit('ui/widgets', uiWidgets, { root: true })
+        commit('ui/groups', uiGroups, { root: true })
+        return true
     },
     endEditTracking ({ commit }) {
         console.log('endEditTracking')
@@ -277,6 +362,7 @@ const actions = {
         commit('originalGroups', null)
         commit('originalWidgets', null)
         commit('shadowWidgets', null)
+        commit('clearUndoStack')
     }
 }
 

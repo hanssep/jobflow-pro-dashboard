@@ -12,12 +12,13 @@ export default {
     data () {
         return {
             pageGroups: [],
-            pageGroupWidgets: []
+            pageGroupWidgets: [],
+            _keydownHandler: null
         }
     },
     emits: ['refresh-state-from-store'],
     computed: {
-        ...mapGetters('wysiwyg', ['isDirty', 'originalGroups', 'originalWidgets']),
+        ...mapGetters('wysiwyg', ['isDirty', 'originalGroups', 'originalWidgets', 'canUndo']),
         dirty () {
             if (!this.editMode || !isTrackingEdits.value) {
                 return false
@@ -28,7 +29,67 @@ export default {
             return editMode.value && editPage.value === this.$route.meta.id
         }
     },
+    watch: {
+        editMode (active) {
+            if (active) {
+                this._bindKeyboard()
+            } else {
+                this._unbindKeyboard()
+            }
+        }
+    },
+    mounted () {
+        if (this.editMode) {
+            this._bindKeyboard()
+        }
+    },
+    beforeUnmount () {
+        this._unbindKeyboard()
+    },
     methods: {
+        _bindKeyboard () {
+            if (this._keydownHandler) return
+            this._keydownHandler = (e) => {
+                if (!this.editMode) return
+                // Ctrl+S / Cmd+S → save
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault()
+                    if (this.dirty && !this.saving) {
+                        this.saveEdits()
+                    }
+                }
+                // Ctrl+Z / Cmd+Z → undo
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault()
+                    this.undoEdit()
+                }
+                // Escape → leave edit mode
+                if (e.key === 'Escape') {
+                    e.preventDefault()
+                    this.leaveEditMode()
+                }
+            }
+            window.addEventListener('keydown', this._keydownHandler)
+        },
+        _unbindKeyboard () {
+            if (this._keydownHandler) {
+                window.removeEventListener('keydown', this._keydownHandler)
+                this._keydownHandler = null
+            }
+        },
+        pushUndoSnapshot () {
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+        },
+        undoEdit () {
+            this.$store.dispatch('wysiwyg/popUndoSnapshot').then((restored) => {
+                if (restored) {
+                    this.$emit('refresh-state-from-store')
+                    if (typeof this.updateEditStateObjects === 'function') {
+                        this.updateEditStateObjects()
+                    }
+                }
+            })
+        },
         initializeEditTracking () {
             if (this.editMode && !isTrackingEdits.value) {
                 this.$store.dispatch('wysiwyg/beginEditTracking', { groups: this.pageGroups, widgets: this.pageGroupWidgets })
@@ -36,6 +97,7 @@ export default {
         },
         acceptChanges () {
             this.$store.dispatch('wysiwyg/updateEditTracking', { groups: this.pageGroups, widgets: this.pageGroupWidgets })
+            this.$store.commit('wysiwyg/clearUndoStack') // baseline updated, undo history no longer valid
         },
         exitEditMode () {
             const url = new URL(window.location.href)

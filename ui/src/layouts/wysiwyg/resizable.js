@@ -69,6 +69,9 @@ export default {
     },
     methods: {
         onHandleDragStart (/** @type {DragEvent} */ event, index, type, item, mode) {
+            if (typeof this.pushUndoSnapshot === 'function') {
+                this.pushUndoSnapshot()
+            }
             this.resizeType = type
             this.resizeMode = mode // 'ew' or 'ns'
 

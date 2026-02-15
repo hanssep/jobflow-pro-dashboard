@@ -184,6 +184,9 @@ export default {
             return this.columns
         },
         addSpacer () {
+            if (typeof this.pushUndoSnapshot === 'function') {
+                this.pushUndoSnapshot()
+            }
             this.$store.dispatch('wysiwyg/addSpacer', {
                 group: this.group.id,
                 name: 'spacer',
@@ -198,6 +201,9 @@ export default {
             })
         },
         removeWidget (widget) {
+            if (typeof this.pushUndoSnapshot === 'function') {
+                this.pushUndoSnapshot()
+            }
             this.$store.dispatch('wysiwyg/removeWidget', { id: widget.id }).then(() => {
                 console.log('Widget removed')
                 this.$emit('widget-removed', { widget })

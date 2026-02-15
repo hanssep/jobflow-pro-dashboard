@@ -27,9 +27,21 @@
                 :permanent="effectiveNavigationStyle === 'icon'"
                 :style="{'position': navPosition}"
             >
-                <v-list nav>
+                <div v-if="!showOnlyIcons && filteredPages.length > 6" class="nrdb-nav-search">
+                    <v-text-field
+                        v-model="pageFilter"
+                        density="compact"
+                        variant="outlined"
+                        placeholder="Filter pages..."
+                        prepend-inner-icon="mdi-magnify"
+                        hide-details
+                        clearable
+                        single-line
+                    />
+                </div>
+                <v-list ref="navList" nav @scroll="onNavScroll">
                     <v-tooltip
-                        v-for="page in orderedPages"
+                        v-for="page in filteredPages"
                         :key="page.id"
                         :disabled="!showOnlyIcons"
                         :text="page.name + (dashboard.showPathInSidebar ? ` (${page.path})` : '')"
@@ -134,7 +146,9 @@ export default {
                 allowDismiss: false,
                 showCountdown: false
             },
-            isMobile: false
+            isMobile: false,
+            pageFilter: '',
+            navScrollTop: 0
         }
     },
     computed: {
@@ -166,6 +180,16 @@ export default {
                 })
             }
             return pages
+        },
+        filteredPages: function () {
+            if (!this.pageFilter) {
+                return this.orderedPages
+            }
+            const filter = this.pageFilter.toLowerCase()
+            return this.orderedPages.filter((p) => {
+                return p.name.toLowerCase().includes(filter) ||
+                    (p.path && p.path.toLowerCase().includes(filter))
+            })
         },
         uiWidgets: function () {
             // get widgets scoped to the UI, not a group/page
@@ -236,6 +260,10 @@ export default {
                     this.rail = true
                 }
             }
+        },
+        orderedPages () {
+            // restore sidebar scroll position after page list re-renders
+            this.restoreNavScroll()
         },
         appIcon: {
             immediate: true,
@@ -357,6 +385,17 @@ export default {
             if (this.effectiveNavigationStyle === 'default') {
                 this.drawer = false
             }
+        },
+        onNavScroll (e) {
+            this.navScrollTop = e.target.scrollTop
+        },
+        restoreNavScroll () {
+            this.$nextTick(() => {
+                const list = this.$refs.navList?.$el
+                if (list && this.navScrollTop > 0) {
+                    list.scrollTop = this.navScrollTop
+                }
+            })
         }
     }
 }
@@ -366,5 +405,8 @@ export default {
 .item-edit-mode-icon {
     color: rgb(var(--v-theme-warning)) !important;
     font-size: 1.25rem;
+}
+.nrdb-nav-search {
+    padding: 8px 12px 0;
 }
 </style>

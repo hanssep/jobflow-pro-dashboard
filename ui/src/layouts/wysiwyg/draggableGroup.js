@@ -19,6 +19,9 @@ export default {
          */
         onGroupDragStart (event, index, item) {
             console.log('onGroupDragStart', index)
+            if (typeof this.pushUndoSnapshot === 'function') {
+                this.pushUndoSnapshot()
+            }
             this.groupDragging.active = true
             this.groupDragging.id = item.id
             this.groupDragging.index = index

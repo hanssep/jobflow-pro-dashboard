@@ -133,6 +133,14 @@ export default {
     },
     created () {
         this.$dataTracker(this.id, null, null, this.onDynamicProperties)
+        // throttled send for real-time slider updates (outs === 'all')
+        this._throttleTimer = null
+        this._pendingSend = false
+    },
+    beforeUnmount () {
+        if (this._throttleTimer) {
+            clearTimeout(this._throttleTimer)
+        }
     },
     mounted () {
         const val = this.messages[this.id]?.payload
@@ -173,7 +181,22 @@ export default {
             const msg = this.messages[this.id] || {}
             msg.payload = val
             this.$store.commit('data/bind', msg)
-            this.$socket.emit('widget-change', this.id, val)
+
+            // throttle real-time slider emits to ~60ms intervals
+            if (!this.props.outs || this.props.outs === 'all') {
+                this._pendingSend = val
+                if (!this._throttleTimer) {
+                    this.$socket.emit('widget-change', this.id, val)
+                    this._throttleTimer = setTimeout(() => {
+                        this._throttleTimer = null
+                        if (this._pendingSend !== val) {
+                            this.$socket.emit('widget-change', this.id, this._pendingSend)
+                        }
+                    }, 60)
+                }
+            } else {
+                this.$socket.emit('widget-change', this.id, val)
+            }
         },
         makeMdiIcon (icon) {
             return 'mdi-' + icon.replace(/^mdi-/, '')
