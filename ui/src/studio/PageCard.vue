@@ -10,7 +10,7 @@
         <div class="studio-page-card__thumbnail">
             <svg viewBox="0 0 280 160" xmlns="http://www.w3.org/2000/svg" class="studio-page-card__svg">
                 <!-- Background -->
-                <rect width="280" height="160" rx="4" fill="#f5f5f5" />
+                <rect width="280" height="160" rx="4" fill="#f3f4f6" />
                 <!-- Groups and widgets -->
                 <template v-for="(g, gi) in pageGroups" :key="g.id">
                     <rect
@@ -19,8 +19,8 @@
                         :width="groupWidth(g)"
                         :height="groupHeight(g, gi)"
                         rx="3"
-                        fill="#e3f2fd"
-                        stroke="#90caf9"
+                        fill="#e8eef6"
+                        stroke="#7eadd9"
                         stroke-width="1"
                     />
                     <!-- Widgets inside group -->
@@ -137,17 +137,17 @@ export default {
         },
         widgetColor (type) {
             const colors = {
-                'ui-button': '#42a5f5',
-                'ui-text': '#66bb6a',
-                'ui-slider': '#ab47bc',
-                'ui-switch': '#ef5350',
-                'ui-chart': '#ffa726',
-                'ui-gauge': '#26c6da',
-                'ui-template': '#78909c',
-                'ui-form': '#5c6bc0',
-                'ui-table': '#8d6e63'
+                'ui-button': '#7eadd9',
+                'ui-text': '#5a8f00',
+                'ui-slider': '#9f7aea',
+                'ui-switch': '#8f0000',
+                'ui-chart': '#f9a825',
+                'ui-gauge': '#3a73b0',
+                'ui-template': '#5b91c7',
+                'ui-form': '#2a5a8f',
+                'ui-table': '#0094ce'
             }
-            return colors[type] || '#bdbdbd'
+            return colors[type] || '#999'
         }
     }
 }
@@ -158,20 +158,24 @@ export default {
     cursor: pointer;
     transition: all 0.2s ease;
     overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid #ccc;
     border-radius: 8px;
+    background: #ffffff;
+    font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 .studio-page-card:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border-color: rgb(var(--v-theme-primary));
+    border-color: #8f0000;
+    transform: translateY(-1px);
 }
 .studio-page-card--creating {
     cursor: default;
-    border: 2px solid rgb(var(--v-theme-primary));
+    border: 2px solid #8f0000;
+    transform: none;
 }
 .studio-page-card__thumbnail {
-    background: #fafafa;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
 }
 .studio-page-card__svg {
     width: 100%;
@@ -188,14 +192,18 @@ export default {
 .studio-page-card__name span {
     font-size: 15px;
     font-weight: 600;
+    color: #333;
+    font-family: 'Exo 2', sans-serif;
 }
 .studio-page-card__meta {
     margin-top: 4px;
     font-size: 12px;
+    color: #666;
+    font-family: 'Exo 2', sans-serif;
 }
 .studio-page-card__actions {
     padding: 4px 8px;
     min-height: unset;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    border-top: 1px solid #e5e7eb;
 }
 </style>

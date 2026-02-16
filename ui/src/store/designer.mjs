@@ -7,6 +7,7 @@
 const state = () => ({
     enabled: false,          // Whether designer mode is active (vs basic WYSIWYG)
     selection: null,         // { type: 'widget'|'group', id: string, widgetType?: string } | null
+    multiSelection: [],      // Array of { type, id, widgetType? } for multi-select
     clipboard: null,         // { type: 'widget', data: { widgetType, props, layout } } | null
     dragState: {
         active: false,
@@ -47,6 +48,15 @@ const getters = {
     },
     isPropertiesVisible (state) {
         return state.panels.properties
+    },
+    multiSelection (state) {
+        return state.multiSelection
+    },
+    isMultiSelected: (state) => (id) => {
+        return state.multiSelection.some(s => s.id === id)
+    },
+    multiSelectionCount (state) {
+        return state.multiSelection.length
     }
 }
 
@@ -60,6 +70,25 @@ const mutations = {
     },
     CLEAR_SELECTION (state) {
         state.selection = null
+        state.multiSelection = []
+    },
+    TOGGLE_MULTI_SELECT (state, item) {
+        const idx = state.multiSelection.findIndex(s => s.id === item.id)
+        if (idx >= 0) {
+            state.multiSelection.splice(idx, 1)
+            // If we removed the primary selection, set to last in multi or null
+            if (state.selection?.id === item.id) {
+                const last = state.multiSelection[state.multiSelection.length - 1]
+                state.selection = last || null
+            }
+        } else {
+            state.multiSelection.push({ ...item })
+            state.selection = { ...item }
+        }
+    },
+    SELECT_ALL (state, items) {
+        state.multiSelection = items.map(i => ({ ...i }))
+        state.selection = items.length ? { ...items[items.length - 1] } : null
     },
     START_DRAG (state, { source, widgetType, data }) {
         state.dragState = {
@@ -102,11 +131,19 @@ const actions = {
         commit('CLEAR_SELECTION')
         commit('END_DRAG')
     },
-    selectWidget ({ commit }, { id, widgetType }) {
-        commit('SELECT', { type: 'widget', id, widgetType })
+    selectWidget ({ commit }, { id, widgetType, addToSelection }) {
+        const item = { type: 'widget', id, widgetType }
+        if (addToSelection) {
+            commit('TOGGLE_MULTI_SELECT', item)
+        } else {
+            commit('SELECT', item)
+        }
     },
     clearSelection ({ commit }) {
         commit('CLEAR_SELECTION')
+    },
+    selectAll ({ commit }, items) {
+        commit('SELECT_ALL', items)
     },
     startDrag ({ commit }, payload) {
         commit('START_DRAG', payload)

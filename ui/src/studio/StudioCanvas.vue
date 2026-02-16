@@ -1,12 +1,29 @@
 <template>
-    <div class="studio-canvas" @click.self="clearSelection">
+    <div
+        class="studio-canvas"
+        @click.self="clearSelection"
+        @wheel.ctrl.prevent="onCtrlWheel"
+        @wheel.meta.prevent="onCtrlWheel"
+    >
         <div class="studio-canvas__body" @click.self="clearSelection">
             <div
-                v-if="orderedGroups.length"
-                class="studio-canvas__grid nrdb-layout--grid nrdb-ui-page"
-                :style="{ '--layout-columns': columns }"
+                class="studio-canvas__viewport"
+                :style="viewportStyle"
                 @click.self="clearSelection"
             >
+                <div
+                    v-if="gridOverlay"
+                    class="studio-canvas__grid-overlay"
+                    :style="{ '--layout-columns': columns }"
+                >
+                    <div v-for="n in columns" :key="n" class="studio-canvas__grid-col" />
+                </div>
+                <div
+                    v-if="orderedGroups.length"
+                    class="studio-canvas__grid nrdb-layout--grid nrdb-ui-page"
+                    :style="{ '--layout-columns': columns }"
+                    @click.self="clearSelection"
+                >
                 <div
                     v-for="(g, $index) in orderedGroups"
                     :id="'nrdb-ui-group-' + g.id"
@@ -44,10 +61,11 @@
                     </v-card>
                 </div>
             </div>
-            <div v-else class="studio-canvas__empty">
-                <v-icon size="64" color="grey-lighten-1">mdi-view-grid-plus-outline</v-icon>
-                <p class="text-body-2 text-medium-emphasis mt-3">This page has no groups or widgets yet.</p>
-                <p class="text-caption text-medium-emphasis">Add widgets in the Node-RED editor.</p>
+                <div v-else class="studio-canvas__empty">
+                    <v-icon size="64" color="grey-lighten-1">mdi-view-grid-plus-outline</v-icon>
+                    <p class="text-body-2 text-medium-emphasis mt-3">This page has no groups or widgets yet.</p>
+                    <p class="text-caption text-medium-emphasis">Add widgets in the Node-RED editor.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -68,9 +86,12 @@ export default {
     props: {
         pageId: { type: String, required: true },
         dashboardId: { type: String, default: '' },
-        editorPath: { type: String, default: '' }
+        editorPath: { type: String, default: '' },
+        previewWidth: { type: Number, default: 0 },
+        zoom: { type: Number, default: 1 },
+        gridOverlay: { type: Boolean, default: false }
     },
-    emits: ['save', 'leave', 'state-changed'],
+    emits: ['save', 'leave', 'state-changed', 'update:columns'],
     setup () {
         const {
             selection, clearSelection, enable, disable,
@@ -109,11 +130,29 @@ export default {
         },
         groupWidgets () {
             return (groupId) => this.pageGroupWidgets[groupId] || []
+        },
+        viewportStyle () {
+            const styles = {}
+            if (this.previewWidth > 0) {
+                styles.maxWidth = this.previewWidth + 'px'
+                styles.margin = '0 auto'
+            }
+            if (this.zoom !== 1) {
+                styles.transform = `scale(${this.zoom})`
+                styles.transformOrigin = 'top center'
+            }
+            return styles
         }
     },
     watch: {
         dirty (val) {
             this.$emit('state-changed', { dirty: val })
+        },
+        previewWidth () {
+            this.countColumns()
+        },
+        columns (val) {
+            this.$emit('update:columns', val)
         }
     },
     mounted () {
@@ -151,9 +190,10 @@ export default {
                         { name: 'Desktop', px: 1024, cols: 12 }
                     ]
                 }
+                const referenceWidth = this.previewWidth > 0 ? this.previewWidth : window.innerWidth
                 const breakpoints = b.sort((a, b) => a.px - b.px)
                 breakpoints.forEach((bp) => {
-                    if (window.innerWidth >= bp.px) {
+                    if (referenceWidth >= bp.px) {
                         cols = Number(bp.cols)
                     }
                 })
@@ -221,11 +261,12 @@ export default {
                 console.error('Error adding widget:', error)
             })
         },
+        onCtrlWheel (e) {
+            const delta = e.deltaY > 0 ? -0.1 : 0.1
+            this.$emit('state-changed', { zoomDelta: delta })
+        },
         // Public methods called by parent
         doSave () {
-            console.log('[StudioCanvas] doSave — page:', this.page?.id, 'dashboard:', this.page?.ui)
-            console.log('[StudioCanvas] doSave — groups:', this.pageGroups?.length, 'widgetGroups:', Object.keys(this.pageGroupWidgets || {}))
-            console.log('[StudioCanvas] doSave — originalGroups:', this.originalGroups, 'originalWidgets:', this.originalWidgets)
             return this.deployChanges({
                 dashboard: this.page.ui,
                 page: this.page.id,
@@ -269,12 +310,38 @@ export default {
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 .studio-canvas__body {
     flex: 1;
     overflow: auto;
-    background-color: #f5f5f5;
+    background-color: #f3f4f6;
     padding: 0;
+    /* Subtle cross-hatch pattern for canvas feel */
+    background-image:
+        radial-gradient(circle, #ddd 0.5px, transparent 0.5px);
+    background-size: 24px 24px;
+}
+.studio-canvas__viewport {
+    transition: max-width 0.3s ease;
+    min-height: 100%;
+    position: relative;
+}
+.studio-canvas__grid-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(var(--layout-columns), 1fr);
+    gap: var(--group-gap, 12px);
+    padding: var(--page-padding, 12px);
+    pointer-events: none;
+    z-index: 1;
+}
+.studio-canvas__grid-col {
+    background: rgba(58, 115, 176, 0.05);
+    border: 1px dashed rgba(58, 115, 176, 0.2);
+    border-radius: 2px;
+    min-height: 100%;
 }
 .studio-canvas__grid {
     --layout-card-width: 320px;
@@ -293,6 +360,10 @@ export default {
     min-height: 400px;
     text-align: center;
     padding: 60px 20px;
+    background: none;
+}
+.studio-canvas__empty p {
+    font-family: 'Exo 2', sans-serif;
 }
 .v-card {
     width: 100%;

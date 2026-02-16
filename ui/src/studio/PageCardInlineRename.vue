@@ -50,5 +50,7 @@ export default {
 <style scoped>
 .studio-inline-rename {
     max-width: 240px;
+    font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
 }
 </style>
