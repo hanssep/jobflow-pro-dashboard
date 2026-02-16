@@ -33,8 +33,18 @@
                 </v-list-item>
             </template>
             <template v-else-if="target && target.type === 'group'">
+                <v-list-item prepend-icon="mdi-pencil-outline" @click="$emit('rename-group')">
+                    <v-list-item-title>Rename Group</v-list-item-title>
+                </v-list-item>
+                <v-list-item prepend-icon="mdi-content-copy" @click="$emit('duplicate-group')">
+                    <v-list-item-title>Duplicate Group</v-list-item-title>
+                </v-list-item>
                 <v-list-item prepend-icon="mdi-card-plus-outline" @click="$emit('add-spacer')">
                     <v-list-item-title>Add Spacer</v-list-item-title>
+                </v-list-item>
+                <v-divider />
+                <v-list-item prepend-icon="mdi-delete-outline" class="text-error" @click="$emit('delete-group')">
+                    <v-list-item-title>Delete Group</v-list-item-title>
                 </v-list-item>
             </template>
         </v-list>
@@ -47,7 +57,7 @@ export default {
     props: {
         target: { type: Object, default: null }
     },
-    emits: ['duplicate', 'delete', 'move-front', 'move-back', 'add-spacer', 'close'],
+    emits: ['duplicate', 'delete', 'move-front', 'move-back', 'add-spacer', 'rename-group', 'duplicate-group', 'delete-group', 'close'],
     data () {
         return {
             visible: false,

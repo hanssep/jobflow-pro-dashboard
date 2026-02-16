@@ -139,6 +139,9 @@ const actions = {
             commit('SELECT', item)
         }
     },
+    selectGroup ({ commit }, { id }) {
+        commit('SELECT', { type: 'group', id })
+    },
     clearSelection ({ commit }) {
         commit('CLEAR_SELECTION')
     },

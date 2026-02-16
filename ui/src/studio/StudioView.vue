@@ -57,11 +57,13 @@
                         @leave="backToPages"
                         @state-changed="onCanvasStateChanged"
                         @update:columns="columnCount = $event"
+                        @add-group="showCreateGroupDialog"
+                        @group-context="onGroupContext"
                     />
                 </div>
                 <transition name="slide-right">
                     <div v-if="isPropertiesVisible" class="studio-editor__properties">
-                        <PropertyEditor />
+                        <InspectorPanel />
                     </div>
                 </transition>
             </div>
@@ -112,6 +114,44 @@
             </v-card>
         </v-dialog>
 
+        <!-- Context menu for widget/group right-click -->
+        <ContextMenu
+            ref="contextMenu"
+            :target="contextMenuTarget"
+            @duplicate="duplicateWidget"
+            @delete="deleteContextWidget"
+            @move-front="moveWidgetToFront"
+            @move-back="moveWidgetToBack"
+            @add-spacer="addSpacerToGroup"
+            @rename-group="renameContextGroup"
+            @duplicate-group="duplicateContextGroup"
+            @delete-group="confirmDeleteGroup(contextMenuTarget?.id)"
+        />
+
+        <!-- Page creation/edit dialog -->
+        <PageCreationDialog
+            :visible="pageDialog.show"
+            :mode="pageDialog.mode"
+            :page="pageDialog.page"
+            @save="onPageDialogSave"
+            @cancel="pageDialog.show = false"
+        />
+
+        <!-- Delete Group Confirmation Dialog -->
+        <v-dialog v-model="deleteGroupDialog.show" max-width="420" persistent>
+            <v-card class="studio-dialog">
+                <v-card-title class="studio-dialog__title">Delete Group</v-card-title>
+                <v-card-text class="studio-dialog__text">
+                    Are you sure you want to delete this group and all its widgets? This action cannot be undone.
+                </v-card-text>
+                <v-card-actions class="studio-dialog__actions">
+                    <v-spacer />
+                    <v-btn variant="text" class="studio-dialog__btn" @click="deleteGroupDialog.show = false">Cancel</v-btn>
+                    <v-btn variant="flat" class="studio-dialog__btn-danger" :loading="deleteGroupDialog.loading" @click="doDeleteGroup">Delete</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
         <!-- Snackbar for errors -->
         <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000">
             {{ snackbar.text }}
@@ -123,9 +163,11 @@
 import { mapState, mapGetters } from 'vuex'
 
 import { useDesignerState } from '../designer/composables/useDesignerState.js'
-import PropertyEditor from '../designer/panels/PropertyEditor.vue'
 import { initialise as initEditMode } from '../EditTracking.js'
 
+import ContextMenu from './ContextMenu.vue'
+import PageCreationDialog from './dialogs/PageCreationDialog.vue'
+import InspectorPanel from './inspector/InspectorPanel.vue'
 import PageGrid from './PageGrid.vue'
 import StudioCanvas from './StudioCanvas.vue'
 import StudioToolbar from './StudioToolbar.vue'
@@ -133,7 +175,7 @@ import StudioApi from './composables/useStudioApi.js'
 
 export default {
     name: 'StudioView',
-    components: { StudioToolbar, PageGrid, StudioCanvas, PropertyEditor },
+    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ContextMenu, PageCreationDialog },
     setup () {
         const { isPropertiesVisible } = useDesignerState()
         return { isPropertiesVisible }
@@ -160,6 +202,17 @@ export default {
             },
             saveDialog: {
                 show: false
+            },
+            contextMenuTarget: null,
+            pageDialog: {
+                show: false,
+                mode: 'create',
+                page: null
+            },
+            deleteGroupDialog: {
+                show: false,
+                groupId: null,
+                loading: false
             },
             snackbar: {
                 show: false,
@@ -528,22 +581,8 @@ export default {
         },
 
         // Page management methods
-        async createPage () {
-            if (this.creating) return
-            this.creating = true
-            try {
-                const response = await StudioApi.createPage({
-                    dashboard: this.dashboardId,
-                    editorPath: this.editorPath
-                })
-                if (response.data?.page?.id) {
-                    this.$store.commit('studio/setCreatingPageId', response.data.page.id)
-                }
-            } catch (err) {
-                this.showError('Failed to create page: ' + (err.response?.data?.error || err.message))
-            } finally {
-                this.creating = false
-            }
+        createPage () {
+            this.showCreatePageDialog()
         },
         async renamePage (pageId, newName) {
             this.$store.commit('studio/clearCreatingPageId')
@@ -606,6 +645,168 @@ export default {
         },
         showError (text) {
             this.snackbar = { show: true, text, color: 'error' }
+        },
+
+        // ── Page dialog ──────────────────────────────────────────────────────
+        showCreatePageDialog () {
+            this.pageDialog = { show: true, mode: 'create', page: null }
+        },
+        showEditPageDialog () {
+            if (!this.activePageId) return
+            const page = this.pages[this.activePageId]
+            if (!page) return
+            this.pageDialog = { show: true, mode: 'edit', page }
+        },
+        async onPageDialogSave (data) {
+            this.pageDialog.show = false
+            if (this.pageDialog.mode === 'create') {
+                this.creating = true
+                try {
+                    const response = await StudioApi.createPage({
+                        dashboard: this.dashboardId,
+                        editorPath: this.editorPath,
+                        ...data
+                    })
+                    if (response.data?.page?.id) {
+                        this.$store.commit('studio/setCreatingPageId', response.data.page.id)
+                    }
+                } catch (err) {
+                    this.showError('Failed to create page: ' + (err.response?.data?.error || err.message))
+                } finally {
+                    this.creating = false
+                }
+            } else {
+                try {
+                    await StudioApi.updatePage({
+                        dashboard: this.dashboardId,
+                        pageId: this.activePageId,
+                        editorPath: this.editorPath,
+                        updates: data
+                    })
+                } catch (err) {
+                    this.showError('Failed to update page: ' + (err.response?.data?.error || err.message))
+                }
+            }
+        },
+
+        // ── Group CRUD ───────────────────────────────────────────────────────
+        showCreateGroupDialog () {
+            if (!this.activePageId) return
+            this.createGroupForPage()
+        },
+        async createGroupForPage () {
+            try {
+                await StudioApi.createGroup({
+                    dashboard: this.dashboardId,
+                    pageId: this.activePageId,
+                    editorPath: this.editorPath,
+                    name: 'New Group',
+                    width: 6,
+                    showTitle: true
+                })
+            } catch (err) {
+                this.showError('Failed to create group: ' + (err.response?.data?.error || err.message))
+            }
+        },
+        confirmDeleteGroup (groupId) {
+            if (!groupId) return
+            this.deleteGroupDialog = { show: true, groupId, loading: false }
+        },
+        async doDeleteGroup () {
+            this.deleteGroupDialog.loading = true
+            try {
+                await StudioApi.deleteGroup({
+                    dashboard: this.dashboardId,
+                    pageId: this.activePageId,
+                    groupId: this.deleteGroupDialog.groupId,
+                    editorPath: this.editorPath,
+                    mode: 'cascade'
+                })
+                this.$store.dispatch('designer/clearSelection')
+                this.deleteGroupDialog.show = false
+            } catch (err) {
+                this.showError('Failed to delete group: ' + (err.response?.data?.error || err.message))
+            } finally {
+                this.deleteGroupDialog.loading = false
+            }
+        },
+        async duplicateContextGroup () {
+            const target = this.contextMenuTarget
+            if (!target || target.type !== 'group') return
+            try {
+                await StudioApi.duplicateGroup({
+                    dashboard: this.dashboardId,
+                    pageId: this.activePageId,
+                    groupId: target.id,
+                    editorPath: this.editorPath
+                })
+            } catch (err) {
+                this.showError('Failed to duplicate group: ' + (err.response?.data?.error || err.message))
+            }
+        },
+        renameContextGroup () {
+            const target = this.contextMenuTarget
+            if (!target || target.type !== 'group') return
+            // Select the group so inspector panel shows it for renaming
+            this.$store.dispatch('designer/selectGroup', { id: target.id })
+        },
+
+        // ── Context menu ─────────────────────────────────────────────────────
+        onGroupContext (event, group) {
+            this.contextMenuTarget = { type: 'group', id: group.id }
+            this.$refs.contextMenu.open(event.clientX, event.clientY)
+        },
+        deleteContextWidget () {
+            const target = this.contextMenuTarget
+            if (!target || target.type !== 'widget') return
+            this.deleteSelectedWidget(target)
+        },
+        moveWidgetToFront () {
+            const target = this.contextMenuTarget
+            if (!target || target.type !== 'widget') return
+            const widget = this.$store.state.ui.widgets[target.id]
+            if (!widget) return
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                id: target.id,
+                key: 'order',
+                value: -1
+            })
+            if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
+        },
+        moveWidgetToBack () {
+            const target = this.contextMenuTarget
+            if (!target || target.type !== 'widget') return
+            const widget = this.$store.state.ui.widgets[target.id]
+            if (!widget) return
+            const groupId = widget.props?.group
+            if (!groupId) return
+            const siblings = Object.values(this.$store.state.ui.widgets)
+                .filter(w => w.props?.group === groupId)
+            const maxOrder = Math.max(...siblings.map(w => w.layout?.order || 0))
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                id: target.id,
+                key: 'order',
+                value: maxOrder + 1
+            })
+            if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
+        },
+        addSpacerToGroup () {
+            const target = this.contextMenuTarget
+            if (!target) return
+            const groupId = target.type === 'group' ? target.id : this.$store.state.ui.widgets[target.id]?.props?.group
+            if (!groupId) return
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            this.$store.dispatch('wysiwyg/addSpacer', {
+                group: groupId,
+                name: 'spacer',
+                order: 999,
+                height: 1,
+                width: 1
+            }).then(() => {
+                if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
+            })
         }
     }
 }

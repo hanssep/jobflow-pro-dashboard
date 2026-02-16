@@ -32,20 +32,33 @@ function getDashboardApiUrl (editorPath, dashboardId, ...path) {
 }
 
 export default {
-    createPage ({ dashboard, editorPath }) {
+    // ── Page endpoints ──────────────────────────────────────────────────────
+    createPage ({ dashboard, editorPath, name, path, icon, layout, theme, breakpoints, className }) {
+        const data = {}
+        if (name) data.name = name
+        if (path) data.path = path
+        if (icon) data.icon = icon
+        if (layout) data.layout = layout
+        if (theme) data.theme = theme
+        if (breakpoints) data.breakpoints = breakpoints
+        if (className) data.className = className
         return axios.request({
             method: 'POST',
             url: getDashboardApiUrl(editorPath || '', dashboard, 'studio', 'pages'),
-            headers: applyAuth({ 'Content-type': 'application/json' }, editorPath)
+            headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
+            data
         })
     },
-    renamePage ({ dashboard, pageId, name, editorPath }) {
+    updatePage ({ dashboard, pageId, editorPath, updates }) {
         return axios.request({
             method: 'PATCH',
             url: getDashboardApiUrl(editorPath || '', dashboard, 'studio', 'pages', pageId),
             headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
-            data: { name }
+            data: updates
         })
+    },
+    renamePage ({ dashboard, pageId, name, editorPath }) {
+        return this.updatePage({ dashboard, pageId, editorPath, updates: { name } })
     },
     deletePage ({ dashboard, pageId, editorPath }) {
         return axios.request({
@@ -68,6 +81,50 @@ export default {
             url: getDashboardApiUrl(editorPath || '', dashboard, 'edit', pageId),
             headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
             data: { mode: 'edit', dashboard, page: pageId }
+        })
+    },
+
+    // ── Group endpoints ─────────────────────────────────────────────────────
+    createGroup ({ dashboard, pageId, editorPath, name, width, height, showTitle, groupType, className }) {
+        const data = { name }
+        if (width !== undefined) data.width = width
+        if (height !== undefined) data.height = height
+        if (showTitle !== undefined) data.showTitle = showTitle
+        if (groupType) data.groupType = groupType
+        if (className) data.className = className
+        return axios.request({
+            method: 'POST',
+            url: getDashboardApiUrl(editorPath || '', dashboard, 'studio', 'pages', pageId, 'groups'),
+            headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
+            data
+        })
+    },
+    updateGroup ({ dashboard, groupId, editorPath, updates }) {
+        return axios.request({
+            method: 'PATCH',
+            url: getDashboardApiUrl(editorPath || '', dashboard, 'studio', 'groups', groupId),
+            headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
+            data: updates
+        })
+    },
+    deleteGroup ({ dashboard, pageId, groupId, editorPath, mode }) {
+        let url = getDashboardApiUrl(editorPath || '', dashboard, 'studio', 'pages', pageId, 'groups', groupId)
+        if (mode) {
+            url = new URL(url)
+            url.searchParams.set('mode', mode)
+        }
+        return axios.request({
+            method: 'DELETE',
+            url: url.toString(),
+            headers: applyAuth({ 'Content-type': 'application/json' }, editorPath)
+        })
+    },
+    duplicateGroup ({ dashboard, pageId, groupId, editorPath, name }) {
+        return axios.request({
+            method: 'POST',
+            url: getDashboardApiUrl(editorPath || '', dashboard, 'studio', 'pages', pageId, 'groups', groupId, 'duplicate'),
+            headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
+            data: name ? { name } : {}
         })
     }
 }

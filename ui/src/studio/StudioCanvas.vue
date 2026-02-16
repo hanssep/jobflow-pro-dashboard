@@ -39,9 +39,9 @@
                     @drop.prevent
                     @dragenter.prevent
                 >
-                    <v-card variant="outlined" class="bg-group-background">
+                    <v-card variant="outlined" class="bg-group-background" :class="{ 'studio-canvas__group--selected': isGroupSelected(g.id) }">
                         <template v-if="g.showTitle" #title>
-                            {{ g.name }}
+                            <span class="studio-canvas__group-title" @click.stop="selectGroup(g)" @contextmenu.stop.prevent="$emit('group-context', $event, g)">{{ g.name }}</span>
                         </template>
                         <template #text>
                             <widget-group
@@ -63,8 +63,19 @@
             </div>
                 <div v-else class="studio-canvas__empty">
                     <v-icon size="64" color="grey-lighten-1">mdi-view-grid-plus-outline</v-icon>
-                    <p class="text-body-2 text-medium-emphasis mt-3">This page has no groups or widgets yet.</p>
-                    <p class="text-caption text-medium-emphasis">Add widgets in the Node-RED editor.</p>
+                    <p class="text-body-2 text-medium-emphasis mt-3">This page has no groups yet.</p>
+                    <p class="text-caption text-medium-emphasis">Click the button below to add one.</p>
+                </div>
+                <div class="studio-canvas__add-group">
+                    <v-btn
+                        variant="outlined"
+                        size="small"
+                        prepend-icon="mdi-plus"
+                        class="studio-canvas__add-group-btn"
+                        @click="$emit('add-group')"
+                    >
+                        Add Group
+                    </v-btn>
                 </div>
             </div>
         </div>
@@ -91,7 +102,7 @@ export default {
         zoom: { type: Number, default: 1 },
         gridOverlay: { type: Boolean, default: false }
     },
-    emits: ['save', 'leave', 'state-changed', 'update:columns'],
+    emits: ['save', 'leave', 'state-changed', 'update:columns', 'add-group', 'group-context'],
     setup () {
         const {
             selection, clearSelection, enable, disable,
@@ -261,6 +272,13 @@ export default {
                 console.error('Error adding widget:', error)
             })
         },
+        selectGroup (group) {
+            this.$store.dispatch('designer/selectGroup', { id: group.id })
+        },
+        isGroupSelected (groupId) {
+            const sel = this.$store.getters['designer/selection']
+            return sel && sel.type === 'group' && sel.id === groupId
+        },
         onCtrlWheel (e) {
             const delta = e.deltaY > 0 ? -0.1 : 0.1
             this.$emit('state-changed', { zoomDelta: delta })
@@ -367,5 +385,35 @@ export default {
 }
 .v-card {
     width: 100%;
+}
+.studio-canvas__group--selected {
+    outline: 2px solid #5a8f00;
+    outline-offset: -1px;
+}
+.studio-canvas__group-title {
+    cursor: pointer;
+    user-select: none;
+}
+.studio-canvas__group-title:hover {
+    color: #5a8f00;
+}
+.studio-canvas__add-group {
+    display: flex;
+    justify-content: center;
+    padding: 16px 12px 24px;
+}
+.studio-canvas__add-group-btn {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: none;
+    border-style: dashed;
+    border-color: #bbb;
+    color: #666;
+}
+.studio-canvas__add-group-btn:hover {
+    border-color: #5a8f00;
+    color: #5a8f00;
+    background-color: rgba(90, 143, 0, 0.04);
 }
 </style>

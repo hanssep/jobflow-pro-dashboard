@@ -275,6 +275,14 @@ const actions = {
         commit('ui/widgets', rootState.ui.widgets, { root: true })
         return widget
     },
+    updateGroupProperty ({ rootState, commit }, { id, key, value }) {
+        const group = rootState.ui.groups[id]
+        if (!group) {
+            throw new Error('Group not found: ' + id)
+        }
+        group[key] = value
+        commit('ui/groups', { ...rootState.ui.groups }, { root: true })
+    },
     updateWidgetProperty ({ rootState, commit }, { id, key, value }) {
         const widget = rootState.ui.widgets[id]
         if (!widget) {
