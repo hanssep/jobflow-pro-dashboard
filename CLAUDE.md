@@ -99,6 +99,14 @@ The codebase runs in two separate runtimes that communicate via Socket.IO:
 - **E2E tests**: Cypress — test files in `cypress/tests/`, fixtures with flow JSON in `cypress/fixtures/flows/`
 - **CI**: Node 20, runs lint + unit tests via GitHub Actions shared workflow
 
+## Runtime Environment
+
+- **This is JobFlow Pro, NOT vanilla Node-RED** — it runs as an embedded Node-RED inside the JobFlow Pro engine
+- **Base URL**: `https://localhost:8888/jobflowengine/api`
+- **Dashboard URL**: `https://localhost:8888/jobflowengine/api/dashboard/`
+- **Studio URL**: `https://localhost:8888/jobflowengine/api/dashboard/_studio`
+- **Self-signed HTTPS** — always use HTTPS, never plain HTTP
+
 ## Active Development: Studio Plan
 
 See `STUDIO-PLAN.md` for the strategic roadmap to evolve Studio from a layout arranger into a full visual design environment. Core principle: **Node-RED owns behavior, Studio owns appearance.**
