@@ -46,6 +46,7 @@ import { initialise as initEditMode } from './EditTracking.js'
 import PWABadge from './components/PWABadge.vue'
 import DashboardLoading from './components/loading.vue'
 import DebugView from './debug/Debug.vue' // import the Debug View for a Dashboard
+const StudioView = () => import('./studio/StudioView.vue') // lazy-load Studio View
 import layouts from './layouts/index.mjs' // import all layouts
 import { importExternalComponent } from './util.mjs'
 import widgetComponents from './widgets/index.mjs' // import all Vue Widget Components\
@@ -185,6 +186,19 @@ export default {
                     component: DebugView,
                     meta: {
                         dashboard: ui.id // the dashboard id - to simplify determining which dashboard we're on
+                    }
+                })
+
+                // Register Studio route
+                const studioPath = (ui.path + '/_studio').replace(/\/\//g, '/')
+                this.$router?.addRoute({
+                    path: studioPath,
+                    name: `${ui.id}_studio`,
+                    component: StudioView,
+                    meta: {
+                        title: 'Dashboard Studio',
+                        dashboard: ui.id,
+                        isStudio: true
                     }
                 })
             })

@@ -10,7 +10,6 @@
             "category": "dashboard 2",
             "dashboard2": "Dashboard 2.0",
             "editSettings": "Edit Settings",
-            "openDashboard": "Open Dashboard",
             "layout": "Layout",
             "layoutMessage": "Here you can re-order and move your widgets, groups and pages.",
             "unattachedMessage": "The following Groups have do not have a parent page defined.",
@@ -45,8 +44,8 @@
             "myGroup": "My Group",
             "empty": "empty",
             "allowInstall": "Allow App Installation",
-            "installation": "Installation Options"
-
+            "installation": "Installation Options",
+            "openStudio": "Studio"
         },
         "layout": {
             "pages": "Pages",

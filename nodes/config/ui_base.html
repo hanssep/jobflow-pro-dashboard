@@ -315,6 +315,7 @@
     .nrdb-section-has-error > .nrdb-section-header > .nrdb-section-error-dot {
         display: block;
     }
+
 </style>
 
 
@@ -394,82 +395,20 @@ window.nrdbInitSections = function (nodeType) {
 /** @typedef {Object<string, Array<DashboardItem>>} DashboardItemLookup */
 // #endregion
 
-// Custom global sidebar function used in other nodes
+// Custom global sidebar function used in other nodes (e.g. ui_page.html)
+// Opens Studio in a new window for the given dashboard base
 async function showDashboardWysiwygEditor (pageId, baseId) {
-    // call to httpadmin endpoint requesting layout editor mode for this group
-    const windowUrl = new URL(window.location.href)
     const base = RED.nodes.node(baseId)
     const dashboardBasePath = (base.path || 'dashboard').replace(/\/$/, '').replace(/^\/+/, '')
-    const authTokens = RED.settings.get('auth-tokens') || {}
-    const headers = {}
-    if (authTokens?.access_token) {
-        headers.Authorization = `${authTokens.token_type || 'Bearer'} ${authTokens.access_token}`
-    }
-
-    // promisify the ajax call so we can await it & return false after opening the popup
-    const ajax = () => {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                url: `${dashboardBasePath}/api/v1/${baseId}/edit/${pageId}`, // e.g. /dashboard/api/v1/123/edit/456
-                type: 'PATCH',
-                headers,
-                data: {
-                    mode: 'edit',
-                    dashboard: baseId,
-                    page: pageId
-                },
-                success: function (data) {
-                    // construct the url to open the layout editor
-                    const pathParts = []
-                    const trimSlashes = (s) => s.replace(/^\/|\/$/g, '')
-                    const httpRoot = RED.settings.httpNodeRoot
-                    if (httpRoot && typeof httpRoot === 'string' && httpRoot !== '/') {
-                        pathParts.push(trimSlashes(httpRoot))
-                    }
-                    pathParts.push(trimSlashes(dashboardBasePath))
-                    pathParts.push(trimSlashes(data.path))
-                    const dashboardPath = '/' + pathParts.filter(Boolean).join('/')
-                    const _url = new URL(dashboardPath, windowUrl.origin)
-                    _url.searchParams.set('edit-key', data.editKey)
-                    const editorPath = windowUrl.pathname?.replace(/\/$/, '').replace(/^\/+/, '') || ''
-                    if (editorPath) {
-                        _url.searchParams.set('editor-path', editorPath)
-                    }
-                    resolve(_url)
-                },
-                error: function (err) {
-                    reject(err)
-                }
-            })
-        })
-    }
-    try {
-        const url = await ajax()
-        const target = `ff-dashboard-${baseId}` // try to reuse the same window per base
-        const newWindow = window.open(url, target)
-        // if we have an access_token then send it to the new window once opened
-        // This becomes necessary if the user has gotten logged out since opening the editor.
-        // Also, this squares up any token mismatch due to iframes/Same-Origin Policy etc.
-        if (authTokens?.access_token && newWindow) {
-            // Wait 1s then send the local access_token
-            // (it is unlikely user will have done any editing and be wanting to deploy within 1s!)
-            setTimeout(() => {
-                newWindow.postMessage({
-                    type: 'authorization',
-                    access_token: authTokens.access_token,
-                    token_type: authTokens.token_type,
-                    expires_in: authTokens.expires_in
-                }, url.origin)
-            }, 1000)
-        }
-    } catch (err) {
-        console.error('layout mode error', err)
-        RED.notify(RED._('@flowfuse/node-red-dashboard/ui-base:ui-base.error.layoutEditor'), 'error')
-    }
+    const httpRoot = RED.settings.httpNodeRoot || '/'
+    const parts = []
+    if (httpRoot !== '/') parts.push(httpRoot.replace(/^\/|\/$/g, ''))
+    parts.push(dashboardBasePath, '_studio')
+    const target = `ff-dashboard-${baseId}`
+    window.open('/' + parts.filter(Boolean).join('/'), target)
 }
 
 (function () {
-    const supportedEditableLayouts = ['grid', 'flex']
     const sidebarContainer = '<div style="position: relative; height: 100%;"></div>'
     const sidebarContentTemplate = $('<div id="ff-node-red-dashboard"></div>').appendTo(sidebarContainer)
     const sidebar = $(sidebarContentTemplate)
@@ -683,13 +622,18 @@ async function showDashboardWysiwygEditor (pageId, baseId) {
         editSettingsButton.on('click', function () {
             RED.editor.editConfig('', 'ui-base', id)
         })
-        const target = `nr-dashboard-${id}` // try to reuse the same window per base
-        const openDashboardButton = $(`<a id="open-dashboard" href="${fullPath}" target="${target}" class="editor-button editor-button-small nr-db-sb-list-header-button">` +
-            c_('label.openDashboard') + ' <i style="margin-left: 3px;" class="fa fa-external-link"></i></a>')
+
+        const studioButton = $('<a id="open-studio" class="editor-button editor-button-small nr-db-sb-list-header-button">' +
+            c_('label.openStudio') + ' <i style="margin-left: 3px;" class="fa fa-th-large"></i></a>')
+        studioButton.on('click', function () {
+            const studioPath = fullPath.replace(/\/$/, '') + '/_studio'
+            const studioTarget = `ff-dashboard-${id}`
+            window.open(studioPath, studioTarget)
+        })
 
         label.appendTo(header)
+        studioButton.appendTo(actions)
         editSettingsButton.appendTo(actions)
-        openDashboardButton.appendTo(actions)
         actions.appendTo(header)
         return header
     }
@@ -1346,20 +1290,6 @@ async function showDashboardWysiwygEditor (pageId, baseId) {
                 evt.preventDefault()
             })
 
-            if (supportedEditableLayouts.includes(item.node.layout)) {
-                // button to edit group in wysiwyg layout editor
-                const layoutButton = $(`<a class="nr-db-sb-tab-layout-button editor-button editor-button-small nr-db-sb-list-header-button" title="${c_('layout.layoutEditor')}"><i class="fa fa-pencil-square-o"></i></a>`).appendTo(btnGroup)
-                layoutButton.on('click', function (evt) {
-                    evt.preventDefault()
-                    evt.stopPropagation()
-
-                    const pageId = item.id
-                    const baseId = item.node.ui
-                    showDashboardWysiwygEditor(pageId, baseId)
-
-                    return false // return false to click event to prevent default
-                })
-            }
         }
 
         // if this is a group & it is not an unattached group, add the "_ spacer" button
@@ -2569,6 +2499,7 @@ async function showDashboardWysiwygEditor (pageId, baseId) {
             })
         }
     })
+
 })()
 </script>
 

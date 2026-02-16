@@ -117,19 +117,6 @@
                     }
                 })
 
-                // button to edit page layout in wysiwyg layout editor
-                $('#node-config-layout-edit').on('click', function (evt) {
-                    evt.preventDefault()
-                    evt.stopPropagation()
-
-                    const pageId = node.id
-                    const baseNode = RED.nodes.node(node.ui)
-                    // eslint-disable-next-line no-undef
-                    showDashboardWysiwygEditor(pageId, baseNode.id) // defined in UI Base as a Global
-
-                    return false // return false to click event to prevent default
-                })
-
                 // Breakpoints Editable List
                 const breakpointsList = $('#node-config-list-breakpoints').editableList({
                     header: $('<div>').addClass('node-config-list-breakpoints-header')
@@ -296,10 +283,6 @@
                 <input type="text" id="node-config-input-layout" style="width: 100%;">
                 <input type="hidden" id="node-config-input-layoutType">
             </div>
-            <button type="button" id="node-config-layout-edit" class="red-ui-button" style="margin-left: 10px;" title="Edit Layout">
-                <i class="fa fa-pencil-square-o"></i>
-                <span data-i18n="ui-page.label.editLayout"></span>
-            </button>
         </div>
     </div>
     <div class="form-row" id="text-row-class">
