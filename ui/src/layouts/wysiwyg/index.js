@@ -100,11 +100,22 @@ export default {
             this.$store.commit('wysiwyg/clearUndoStack') // baseline updated, undo history no longer valid
         },
         exitEditMode () {
+            const fromStudio = this.$route.query.from === 'studio'
             const url = new URL(window.location.href)
             url.searchParams.delete('edit-key')
+            url.searchParams.delete('from')
+            url.searchParams.delete('editor-path')
             const query = { ...this.$route.query }
             delete query['edit-key']
-            this.$router.replace({ query })
+            delete query.from
+            if (fromStudio) {
+                // Navigate back to Studio view
+                const basePath = this.$store.state.setup.basePath || ''
+                const studioPath = (basePath + '/_studio').replace(/\/\//g, '/')
+                this.$router.push(studioPath)
+            } else {
+                this.$router.replace({ query })
+            }
             window.history.replaceState({}, document.title, url)
             this.$store.dispatch('wysiwyg/endEditTracking')
         },

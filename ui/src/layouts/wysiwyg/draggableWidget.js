@@ -77,6 +77,16 @@ export default {
             this.widgetDragging.widgetId = null
             this.widgetDragging.index = -1
             this.widgetDragging.dropIndex = -1
+
+            // Notify parent editor of reordered widgets (embed mode)
+            if (window.parent !== window) {
+                const orders = this.widgets.map(w => ({ id: w.id, order: w.props.order }))
+                window.parent.postMessage({
+                    type: 'nrdb-widgets-reordered',
+                    groupId: this.group.id,
+                    widgets: orders
+                }, window.location.origin)
+            }
         },
         moveWidget (fromIndex, toIndex) {
             const movedItem = this.widgets.splice(fromIndex, 1)[0]

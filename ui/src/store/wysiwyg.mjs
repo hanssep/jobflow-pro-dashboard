@@ -8,7 +8,8 @@ const state = () => ({
     originalGroups: null,
     originalWidgets: null,
     shadowWidgets: null, // this is used to store widgets that have been removed during an edit session
-    undoStack: [] // snapshots of {groups, widgets} for undo support
+    undoStack: [], // snapshots of {groups, widgets} for undo support
+    redoStack: [] // snapshots for redo support
 })
 
 // getters
@@ -22,6 +23,9 @@ const getters = {
     },
     canUndo (state) {
         return state.undoStack.length > 0
+    },
+    canRedo (state) {
+        return state.redoStack.length > 0
     },
     isDirty: (state, getters, rootState) => (pageId, groups = null, widgets = null) => {
         // when groups are passed in, they are an array of groups, convert to a key-value object
@@ -165,12 +169,24 @@ const mutations = {
         if (state.undoStack.length > 50) {
             state.undoStack.shift()
         }
+        // Any new change clears the redo stack (standard behavior)
+        state.redoStack = []
     },
     popUndoSnapshot (state) {
         return state.undoStack.pop()
     },
+    pushRedoSnapshot (state, snapshot) {
+        state.redoStack.push(snapshot)
+        if (state.redoStack.length > 50) {
+            state.redoStack.shift()
+        }
+    },
+    popRedoSnapshot (state) {
+        return state.redoStack.pop()
+    },
     clearUndoStack (state) {
         state.undoStack = []
+        state.redoStack = []
     }
 }
 const actions = {
@@ -387,6 +403,10 @@ const actions = {
         if (state.undoStack.length === 0) {
             return false
         }
+        // Save current state to redo stack before restoring
+        const redoSnapshot = _captureCurrentState(rootState)
+        commit('pushRedoSnapshot', redoSnapshot)
+
         const snapshot = state.undoStack.pop()
         // restore groups
         const uiGroups = rootState.ui.groups
@@ -439,7 +459,78 @@ const actions = {
         commit('originalWidgets', null)
         commit('shadowWidgets', null)
         commit('clearUndoStack')
+    },
+    redo ({ rootState, state, commit }) {
+        if (state.redoStack.length === 0) {
+            return false
+        }
+        // Save current state to undo stack
+        const undoSnapshot = _captureCurrentState(rootState)
+        state.undoStack.push(undoSnapshot)
+        if (state.undoStack.length > 50) {
+            state.undoStack.shift()
+        }
+
+        const snapshot = state.redoStack.pop()
+        // restore from redo snapshot (same logic as popUndoSnapshot)
+        const uiGroups = rootState.ui.groups
+        const groupPropertiesOfInterest = ['width', 'height', 'order']
+        for (const key in snapshot.groups) {
+            if (uiGroups[key]) {
+                for (const prop of groupPropertiesOfInterest) {
+                    uiGroups[key][prop] = snapshot.groups[key][prop]
+                }
+            }
+        }
+        const uiWidgets = rootState.ui.widgets
+        const widgetPropsOfInterest = ['width', 'height', 'order', 'group']
+        const widgetLayoutOfInterest = ['width', 'height', 'order']
+        for (const key in snapshot.widgets) {
+            if (uiWidgets[key]) {
+                for (const prop of widgetPropsOfInterest) {
+                    if (snapshot.widgets[key].props[prop] !== undefined) {
+                        uiWidgets[key].props[prop] = snapshot.widgets[key].props[prop]
+                    }
+                }
+                for (const prop of widgetLayoutOfInterest) {
+                    if (snapshot.widgets[key].layout && snapshot.widgets[key].layout[prop] !== undefined) {
+                        uiWidgets[key].layout[prop] = snapshot.widgets[key].layout[prop]
+                    }
+                }
+            } else if (state.shadowWidgets[key]) {
+                uiWidgets[key] = state.shadowWidgets[key]
+                delete state.shadowWidgets[key]
+            }
+        }
+        for (const key in uiWidgets) {
+            if (!snapshot.widgets[key]) {
+                state.shadowWidgets[key] = uiWidgets[key]
+                delete uiWidgets[key]
+            }
+        }
+        commit('ui/widgets', uiWidgets, { root: true })
+        commit('ui/groups', uiGroups, { root: true })
+        return true
     }
+}
+
+function _captureCurrentState (rootState) {
+    const uiGroups = rootState.ui.groups
+    const uiWidgets = rootState.ui.widgets
+    const snapshot = {
+        groups: JSON.parse(JSON.stringify(uiGroups)),
+        widgets: {}
+    }
+    for (const key in uiWidgets) {
+        const w = uiWidgets[key]
+        snapshot.widgets[key] = {
+            id: w.id,
+            type: w.type,
+            props: { ...w.props },
+            layout: { ...w.layout }
+        }
+    }
+    return snapshot
 }
 
 function newId () {

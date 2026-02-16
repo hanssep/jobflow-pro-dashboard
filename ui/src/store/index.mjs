@@ -7,6 +7,7 @@ import setup from './setup.mjs'
 import wysiwyg from './wysiwyg.mjs'
 import designer from './designer.mjs'
 import widgetTypes from './widgetTypes.mjs'
+import studio from './studio.mjs'
 
 export default createStore({
     modules: {
@@ -15,7 +16,8 @@ export default createStore({
         setup,
         wysiwyg,
         designer,
-        widgetTypes
+        widgetTypes,
+        studio
     },
     plugins: []
 })

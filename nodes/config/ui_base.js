@@ -9,6 +9,7 @@ const statestore = require('../store/state.js')
 const { appendTopic, addConnectionCredentials, getThirdPartyWidgets } = require('../utils/index.js')
 
 let designerApi = null
+let studioApi = null
 
 // from: https://stackoverflow.com/a/28592528/3016654
 function join (...paths) {
@@ -50,6 +51,7 @@ module.exports = function (RED) {
 
     // Initialize designer API
     designerApi = require('./ui_designer_api.js')(RED)
+    studioApi = require('./ui_studio_api.js')(RED)
 
     /**
      * @typedef {import('socket.io').Socket} Socket
@@ -1209,30 +1211,12 @@ module.exports = function (RED) {
 
     // PATCH: /dashboard/api/v1/:dashboardId/flows - deploy curated/controlled updates to the flows
     RED.httpAdmin.patch('/dashboard/api/v1/:dashboardId/flows', RED.auth.needsPermission('flows.write'), async function (req, res) {
-        const host = RED.settings.uiHost
-        const port = RED.settings.uiPort
+        // HTTPS-only internal call to Node-RED admin API (JobFlow Pro)
+        const adminPort = RED.settings.uiPort
         const httpAdminRoot = RED.settings.httpAdminRoot
-        let scheme = 'http://'
-        let httpsAgent
-        if (RED.settings.https) {
-            let https = RED.settings.https
-            try {
-                if (typeof https === 'function') {
-                    // since https() could return a promise / be async, we need to await it
-                    // if however the function is actually sync, JS will auto wrap it in a promise and await it
-                    https = await https()
-                }
-                httpsAgent = new Agent({
-                    rejectUnauthorized: false,
-                    ...(https || {})
-                })
-                scheme = 'https://'
-            } catch (error) {
-                return res.status(500).json({ error: 'Error processing https settings' })
-            }
-        }
-        const url = scheme + (`${host}:${port}/${httpAdminRoot}flows`).replace('//', '/')
-        console.log('url', url)
+        const httpsAgent = new Agent({ rejectUnauthorized: false })
+        const root = httpAdminRoot.endsWith('/') ? httpAdminRoot : httpAdminRoot + '/'
+        const url = `https://localhost:${adminPort}${root}flows`
         // get request body
         const dashboardId = req.params.dashboardId
         const pageId = req.body.page
@@ -1244,7 +1228,9 @@ module.exports = function (RED) {
         const addedWidgets = allWidgets.filter(w => !!w.__DB2_ADD_WIDGET).map(w => { delete w.__DB2_ADD_WIDGET; return w })
         const removedWidgets = allWidgets.filter(w => !!w.__DB2_REMOVE_WIDGET).map(w => { delete w.__DB2_REMOVE_WIDGET; return w })
 
-        console.log(changes, editKey, dashboardId)
+        console.log('[deploy] changes:', JSON.stringify({ groupCount: groups.length, widgetCount: allWidgets.length, editKey: !!editKey, pageId }))
+
+        try { // wrap all validation + deploy in try/catch for proper error handling
         const baseNode = RED.nodes.getNode(dashboardId)
 
         // validity checks
@@ -1257,17 +1243,21 @@ module.exports = function (RED) {
         if (!baseNode) {
             return res.status(404).json({ error: 'Dashboard not found' })
         }
-        if (!baseNode.ui.meta.wysiwyg.enabled) {
-            return res.status(403).json({ error: 'Unauthorized' })
+        const wysiwygMeta = baseNode.ui?.meta?.wysiwyg
+        if (!wysiwygMeta) {
+            return res.status(403).json({ error: 'Edit session not active. Please re-open the page editor.' })
         }
-        if (editKey !== baseNode.ui.meta.wysiwyg.editKey) {
-            return res.status(403).json({ error: 'Unauthorized' })
+        if (!wysiwygMeta.enabled) {
+            return res.status(403).json({ error: 'Edit mode not enabled. Please re-open the page editor.' })
         }
-        if (pageId !== baseNode.ui.meta.wysiwyg.page) {
-            return res.status(403).json({ error: 'Unauthorized' })
+        if (editKey !== wysiwygMeta.editKey) {
+            return res.status(403).json({ error: 'Edit key mismatch. Your session may have expired — re-open the page editor.' })
+        }
+        if (pageId !== wysiwygMeta.page) {
+            return res.status(403).json({ error: 'Page ID mismatch. Please re-open the page editor.' })
         }
         for (const modified of groups) {
-            if (modified.page !== baseNode.ui.meta.wysiwyg.page) {
+            if (modified.page !== wysiwygMeta.page) {
                 return res.status(400).json({ error: 'Invalid page id' })
             }
         }
@@ -1275,7 +1265,7 @@ module.exports = function (RED) {
         for (const widget of updatedWidgets) {
             const existingWidget = baseNode.ui.widgets.get(widget.id)
             if (!existingWidget) {
-                return res.status(400).json({ error: 'Widget not found' })
+                return res.status(400).json({ error: 'Widget not found: ' + widget.id })
             }
         }
 
@@ -1331,7 +1321,7 @@ module.exports = function (RED) {
             }
             return false
         }
-        try {
+
             const getResponse = await axios.request({
                 method: 'GET',
                 headers: getHeaders,
@@ -1435,7 +1425,10 @@ module.exports = function (RED) {
 
             return res.status(postResponse.status).json(postResponse.data)
         } catch (error) {
-            console.error(error)
+            console.error('[deploy] Error:', error.message || error)
+            if (error.response?.data) {
+                console.error('[deploy] Response data:', JSON.stringify(error.response.data))
+            }
             const status = error.response?.status || 500
             return res.status(status).json({ error: error.message || 'An error occurred' })
         }

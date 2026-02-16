@@ -41,7 +41,28 @@
                 </div>
             </div>
         </DesignerShell>
-        <div v-if="!editMode && orderedGroups" :id="'nrdb-page-' + $route.meta.id" class="nrdb-layout--grid nrdb-ui-page" :class="page?.className">
+        <!-- Embed mode: resizable widgets without DesignerShell -->
+        <div v-else-if="embedMode && orderedGroups" :id="'nrdb-page-' + $route.meta.id" class="nrdb-layout--grid nrdb-ui-page" :class="page?.className">
+            <div
+                v-for="(g, $index) in orderedGroups"
+                :id="'nrdb-ui-group-' + g.id"
+                :key="g.id"
+                class="nrdb-ui-group"
+                :disabled="g.disabled === true ? 'disabled' : null"
+                :class="getGroupClass(g)"
+                :style="`grid-column-end: span min(${ g.width }, var(--layout-columns)`"
+            >
+                <v-card variant="outlined" class="bg-group-background">
+                    <template v-if="g.showTitle" #title>
+                        {{ g.name }}
+                    </template>
+                    <template #text>
+                        <widget-group :group="g" :index="$index" :widgets="groupWidgets(g.id)" :resizable="true" />
+                    </template>
+                </v-card>
+            </div>
+        </div>
+        <div v-if="!editMode && !embedMode && orderedGroups" :id="'nrdb-page-' + $route.meta.id" class="nrdb-layout--grid nrdb-ui-page" :class="page?.className">
             <div
                 v-for="(g, $index) in orderedGroups"
                 :id="'nrdb-ui-group-' + g.id"
@@ -147,6 +168,9 @@ export default {
                 return (groupId) => this.pageGroupWidgets[groupId]
             }
             return (groupId) => this.widgetsByGroup(groupId)
+        },
+        embedMode () {
+            return window.parent !== window && new URLSearchParams(window.location.search).has('embed')
         },
         currentEditorPath () {
             return editorPath.value || ''

@@ -219,6 +219,25 @@ export default {
         },
         onHandleDragEnd (/** @type {DragEvent} */ event, index, type, item, mode) {
             if (this.groupResizing.active === false && this.widgetResizing.active === false) { return }
+
+            // Notify parent editor of size changes (embed mode)
+            if (window.parent !== window) {
+                if (type === 'widget') {
+                    window.parent.postMessage({
+                        type: 'nrdb-widget-resized',
+                        widgetId: item.id,
+                        width: item.props.width,
+                        height: item.props.height
+                    }, window.location.origin)
+                } else if (type === 'group') {
+                    window.parent.postMessage({
+                        type: 'nrdb-group-resized',
+                        groupId: this.group.id,
+                        width: this.group.width
+                    }, window.location.origin)
+                }
+            }
+
             this.resetDragState()
         },
         resetDragState () {

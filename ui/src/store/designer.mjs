@@ -6,7 +6,8 @@
 // initial state
 const state = () => ({
     enabled: false,          // Whether designer mode is active (vs basic WYSIWYG)
-    selection: null,         // { type: 'widget', id: string, widgetType: string } | null
+    selection: null,         // { type: 'widget'|'group', id: string, widgetType?: string } | null
+    clipboard: null,         // { type: 'widget', data: { widgetType, props, layout } } | null
     dragState: {
         active: false,
         source: null,        // 'palette' | 'canvas'
@@ -86,6 +87,9 @@ const mutations = {
         if (panel in state.panels) {
             state.panels[panel] = visible
         }
+    },
+    SET_CLIPBOARD (state, clipboard) {
+        state.clipboard = clipboard ? { ...clipboard } : null
     }
 }
 
