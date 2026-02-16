@@ -4,6 +4,8 @@
  * for auto-generating the property editor panel
  */
 
+import { getWidgetSchema } from '../../studio/schemas/widgetSchemas.js'
+
 /**
  * Infer field type from a default value
  * @param {string} key - Property key name
@@ -126,9 +128,66 @@ export function getEditableProperties (store, widgetType, currentProps = {}) {
     return parseWidgetSchema(typeInfo.defaults, currentProps)
 }
 
+/**
+ * Get studio schema for a widget — uses per-widget-type schemas from the registry
+ * with current property values merged in, falling back to auto-generated schema
+ * for unknown widget types.
+ *
+ * @param {Object} store - Vuex store instance
+ * @param {string} widgetType - Widget type name (e.g. 'ui-button')
+ * @param {Object} currentProps - Current widget property values
+ * @returns {Object} { content: [...fields], style: [...fields], layout: [...fields] }
+ */
+export function getStudioSchema (store, widgetType, currentProps = {}) {
+    const schema = getWidgetSchema(widgetType)
+    if (schema) {
+        // Merge current values into the schema fields
+        const mergeValues = (fields) => fields.map(field => ({
+            ...field,
+            value: currentProps[field.key] !== undefined ? currentProps[field.key] : field.defaultValue
+        }))
+        const result = {
+            content: mergeValues(schema.content || []),
+            style: mergeValues(schema.style || []),
+            layout: mergeValues(schema.layout || [])
+        }
+        return result
+    }
+
+    // Fallback: auto-generate from widget type defaults and categorize
+    const typeInfo = store.getters['widgetTypes/getType'](widgetType)
+    if (!typeInfo) {
+        return { content: [], style: [], layout: [] }
+    }
+
+    const result = parseWidgetSchema(typeInfo.defaults, currentProps)
+    const allFields = []
+    for (const section of result.sections) {
+        allFields.push(...section.fields)
+    }
+
+    // Use the same categorization keys as InspectorPanel previously used
+    const STYLE_KEYS = new Set([
+        'color', 'bgcolor', 'oncolor', 'offcolor', 'className',
+        'icon', 'iconPrepend', 'iconAppend', 'iconPosition',
+        'iconOn', 'iconOff', 'iconInnerPosition', 'style',
+        'font', 'fontSize', 'layout', 'gstyle', 'gtype',
+        'rounded', 'fullRow', 'variant', 'density', 'textColor',
+        'iconColor', 'backgroundColor'
+    ])
+    const LAYOUT_KEYS = new Set(['width', 'height', 'order', 'name'])
+
+    return {
+        content: allFields.filter(f => !STYLE_KEYS.has(f.key) && !LAYOUT_KEYS.has(f.key)),
+        style: allFields.filter(f => STYLE_KEYS.has(f.key)),
+        layout: allFields.filter(f => LAYOUT_KEYS.has(f.key))
+    }
+}
+
 export default {
     parseWidgetSchema,
     getEditableProperties,
+    getStudioSchema,
     inferFieldType,
     keyToLabel
 }

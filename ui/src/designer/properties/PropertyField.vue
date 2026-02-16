@@ -17,16 +17,22 @@ import IconField from './fields/IconField.vue'
 import NumberField from './fields/NumberField.vue'
 import SelectField from './fields/SelectField.vue'
 import SizeField from './fields/SizeField.vue'
+import SliderField from './fields/SliderField.vue'
 import TextField from './fields/TextField.vue'
+import TextareaField from './fields/TextareaField.vue'
+import ToggleGroupField from './fields/ToggleGroupField.vue'
 
 const FIELD_COMPONENTS = {
     text: TextField,
+    textarea: TextareaField,
     number: NumberField,
     boolean: BooleanField,
     color: ColorField,
     select: SelectField,
     icon: IconField,
-    size: SizeField
+    size: SizeField,
+    slider: SliderField,
+    'toggle-group': ToggleGroupField
 }
 
 export default {
@@ -40,7 +46,11 @@ export default {
     emits: ['change'],
     computed: {
         fieldComponent () {
-            return FIELD_COMPONENTS[this.field.type] || TextField
+            const comp = FIELD_COMPONENTS[this.field.type]
+            if (!comp) {
+                console.warn('[PropertyField] Unknown type:', this.field.type, 'for key:', this.field.key, '→ fallback to TextField')
+            }
+            return comp || TextField
         },
         fieldProps () {
             const props = {
@@ -53,6 +63,14 @@ export default {
             } else if (this.field.type === 'select') {
                 props.modelValue = this.field.value
                 props.items = this.field.options || []
+            } else if (this.field.type === 'toggle-group') {
+                props.modelValue = this.field.value
+                props.options = this.field.options || []
+            } else if (this.field.type === 'slider') {
+                props.modelValue = this.field.value
+                if (this.field.min !== undefined) props.min = this.field.min
+                if (this.field.max !== undefined) props.max = this.field.max
+                if (this.field.step !== undefined) props.step = this.field.step
             } else {
                 props.modelValue = this.field.value
             }

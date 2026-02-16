@@ -6,10 +6,61 @@
         </div>
 
         <!-- Nothing selected -->
-        <div v-if="!selectionType" class="inspector-panel__empty">
+        <div v-if="!selectionType && !isMultiSelect" class="inspector-panel__empty">
             <v-icon size="48" color="grey-lighten-1">mdi-cursor-default-click-outline</v-icon>
             <span>Select a widget or group to inspect</span>
         </div>
+
+        <!-- Multi-select -->
+        <template v-else-if="isMultiSelect">
+            <div class="inspector-panel__info inspector-panel__info--multi">
+                <v-icon size="20">mdi-select-group</v-icon>
+                <div class="inspector-panel__meta">
+                    <span class="inspector-panel__type-label">{{ multiSelectionCount }} widgets selected</span>
+                </div>
+            </div>
+            <v-tabs v-model="activeTab" density="compact" class="inspector-panel__tabs">
+                <v-tab value="content" size="small">Content</v-tab>
+                <v-tab value="style" size="small">Style</v-tab>
+                <v-tab value="layout" size="small">Layout</v-tab>
+            </v-tabs>
+            <div class="inspector-panel__content">
+                <v-window v-model="activeTab">
+                    <v-window-item value="content">
+                        <div v-if="multiCommonFields.content.length" class="inspector-panel__fields">
+                            <PropertyField
+                                v-for="field in multiCommonFields.content"
+                                :key="field.key"
+                                :field="field"
+                                @change="onMultiFieldChange"
+                            />
+                        </div>
+                        <div v-else class="inspector-panel__tab-empty">No common content properties</div>
+                    </v-window-item>
+                    <v-window-item value="style">
+                        <div v-if="multiCommonFields.style.length" class="inspector-panel__fields">
+                            <PropertyField
+                                v-for="field in multiCommonFields.style"
+                                :key="field.key"
+                                :field="field"
+                                @change="onMultiFieldChange"
+                            />
+                        </div>
+                        <div v-else class="inspector-panel__tab-empty">No common style properties</div>
+                    </v-window-item>
+                    <v-window-item value="layout">
+                        <div class="inspector-panel__fields">
+                            <PropertyField
+                                v-for="field in multiCommonFields.layout"
+                                :key="field.key"
+                                :field="field"
+                                @change="onMultiFieldChange"
+                            />
+                        </div>
+                    </v-window-item>
+                </v-window>
+            </div>
+        </template>
 
         <!-- Widget selected -->
         <template v-else-if="selectionType === 'widget'">
@@ -28,9 +79,9 @@
             <div class="inspector-panel__content">
                 <v-window v-model="activeTab">
                     <v-window-item value="content">
-                        <div v-if="widgetContentFields.length" class="inspector-panel__fields">
+                        <div v-if="studioSchema.content.length" class="inspector-panel__fields">
                             <PropertyField
-                                v-for="field in widgetContentFields"
+                                v-for="field in studioSchema.content"
                                 :key="field.key"
                                 :field="field"
                                 @change="onWidgetFieldChange"
@@ -39,9 +90,9 @@
                         <div v-else class="inspector-panel__tab-empty">No content properties</div>
                     </v-window-item>
                     <v-window-item value="style">
-                        <div v-if="widgetStyleFields.length" class="inspector-panel__fields">
+                        <div v-if="studioSchema.style.length" class="inspector-panel__fields">
                             <PropertyField
-                                v-for="field in widgetStyleFields"
+                                v-for="field in studioSchema.style"
                                 :key="field.key"
                                 :field="field"
                                 @change="onWidgetFieldChange"
@@ -59,7 +110,7 @@
                                 @update:height="onSizeChange('height', $event)"
                             />
                             <PropertyField
-                                v-for="field in widgetLayoutFields"
+                                v-for="field in layoutFieldsWithoutSize"
                                 :key="field.key"
                                 :field="field"
                                 @change="onWidgetFieldChange"
@@ -96,19 +147,8 @@ import { useDesignerState } from '../../designer/composables/useDesignerState.js
 import PropertyField from '../../designer/properties/PropertyField.vue'
 import PropertySection from '../../designer/properties/PropertySection.vue'
 import SizeField from '../../designer/properties/fields/SizeField.vue'
-import { getEditableProperties } from '../../designer/services/WidgetSchemaService.js'
+import { getStudioSchema } from '../../designer/services/WidgetSchemaService.js'
 import { getGroupSchema } from '../services/GroupSchemaService.js'
-
-// Classify widget property fields into Content, Style, and Layout tabs
-const STYLE_KEYS = new Set([
-    'color', 'bgcolor', 'oncolor', 'offcolor', 'className',
-    'icon', 'iconPrepend', 'iconAppend', 'iconPosition',
-    'iconOn', 'iconOff', 'iconInnerPosition', 'style',
-    'font', 'fontSize', 'layout', 'gstyle', 'gtype',
-    'rounded', 'fullRow', 'variant', 'density', 'textColor',
-    'iconColor', 'backgroundColor'
-])
-const LAYOUT_KEYS = new Set(['width', 'height', 'order', 'name'])
 
 export default {
     name: 'InspectorPanel',
@@ -123,7 +163,17 @@ export default {
         }
     },
     computed: {
+        multiSelection () {
+            return this.$store.getters['designer/multiSelection'] || []
+        },
+        multiSelectionCount () {
+            return this.$store.getters['designer/multiSelectionCount'] || 0
+        },
+        isMultiSelect () {
+            return this.multiSelectionCount > 1
+        },
         selectionType () {
+            if (this.isMultiSelect) return null
             return this.selection?.type || null
         },
         selectedWidget () {
@@ -144,25 +194,14 @@ export default {
         widgetTypeIcon () {
             return this.widgetTypeInfo?.icon || 'mdi-puzzle-outline'
         },
-        widgetSchema () {
-            if (!this.selection || !this.selectedWidget) return { sections: [] }
-            return getEditableProperties(this.$store, this.selection.widgetType, this.selectedWidget.props)
-        },
-        allWidgetFields () {
-            const fields = []
-            for (const section of this.widgetSchema.sections) {
-                fields.push(...section.fields)
+        studioSchema () {
+            if (!this.selection || !this.selectedWidget) {
+                return { content: [], style: [], layout: [] }
             }
-            return fields
+            return getStudioSchema(this.$store, this.selection.widgetType, this.selectedWidget.props)
         },
-        widgetContentFields () {
-            return this.allWidgetFields.filter(f => !STYLE_KEYS.has(f.key) && !LAYOUT_KEYS.has(f.key))
-        },
-        widgetStyleFields () {
-            return this.allWidgetFields.filter(f => STYLE_KEYS.has(f.key))
-        },
-        widgetLayoutFields () {
-            return this.allWidgetFields.filter(f => LAYOUT_KEYS.has(f.key) && f.key !== 'width' && f.key !== 'height')
+        layoutFieldsWithoutSize () {
+            return this.studioSchema.layout.filter(f => f.key !== 'width' && f.key !== 'height')
         },
         hasSize () {
             return this.selectedWidget?.props?.width !== undefined || this.selectedWidget?.props?.height !== undefined
@@ -176,6 +215,45 @@ export default {
         groupSchema () {
             if (!this.selectedGroup) return { sections: [] }
             return getGroupSchema(this.selectedGroup)
+        },
+        multiCommonFields () {
+            if (!this.isMultiSelect) return { content: [], style: [], layout: [] }
+            const widgets = this.multiSelection
+                .filter(s => s.type === 'widget')
+                .map(s => this.$store.state.ui.widgets[s.id])
+                .filter(Boolean)
+            if (widgets.length === 0) return { content: [], style: [], layout: [] }
+
+            // Get schemas for all selected widgets
+            const schemas = widgets.map((w, i) =>
+                getStudioSchema(this.$store, this.multiSelection[i].widgetType, w.props)
+            )
+
+            // Find common keys across all schemas per tab
+            const commonForTab = (tab) => {
+                const keySets = schemas.map(s => new Set((s[tab] || []).map(f => f.key)))
+                const commonKeys = [...keySets[0]].filter(k => keySets.every(set => set.has(k)))
+                // Use fields from first schema, merge values
+                const firstFields = schemas[0][tab] || []
+                return commonKeys.map(key => {
+                    const field = firstFields.find(f => f.key === key)
+                    if (!field) return null
+                    // Check if all widgets have same value
+                    const values = widgets.map(w => w.props?.[key])
+                    const allSame = values.every(v => v === values[0])
+                    return {
+                        ...field,
+                        value: allSame ? values[0] : undefined,
+                        placeholder: allSame ? undefined : 'Mixed'
+                    }
+                }).filter(Boolean)
+            }
+
+            return {
+                content: commonForTab('content'),
+                style: commonForTab('style'),
+                layout: commonForTab('layout')
+            }
         }
     },
     watch: {
@@ -210,6 +288,18 @@ export default {
                 key,
                 value
             })
+        },
+        onMultiFieldChange ({ key, value }) {
+            if (!this.isMultiSelect) return
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            const widgetItems = this.multiSelection.filter(s => s.type === 'widget')
+            for (const item of widgetItems) {
+                this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                    id: item.id,
+                    key,
+                    value
+                })
+            }
         }
     }
 }
@@ -253,6 +343,9 @@ export default {
     padding: 10px 16px;
     background-color: rgba(var(--v-theme-primary), 0.06);
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.inspector-panel__info--multi {
+    background-color: rgba(var(--v-theme-info), 0.08);
 }
 .inspector-panel__meta {
     display: flex;

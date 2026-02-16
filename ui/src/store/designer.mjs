@@ -73,6 +73,10 @@ const mutations = {
         state.multiSelection = []
     },
     TOGGLE_MULTI_SELECT (state, item) {
+        // If there's a current selection not yet in multiSelection, add it first
+        if (state.selection && !state.multiSelection.some(s => s.id === state.selection.id)) {
+            state.multiSelection.push({ ...state.selection })
+        }
         const idx = state.multiSelection.findIndex(s => s.id === item.id)
         if (idx >= 0) {
             state.multiSelection.splice(idx, 1)

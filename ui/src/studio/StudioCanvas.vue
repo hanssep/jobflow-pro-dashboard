@@ -55,6 +55,7 @@
                                 @widget-added="updateEditStateObjects"
                                 @widget-removed="updateEditStateObjects"
                                 @widget-drop="onWidgetDrop"
+                                @widget-dblclick="$emit('widget-dblclick', $event)"
                                 @refresh-state-from-store="updateEditStateObjects"
                             />
                         </template>
@@ -102,7 +103,7 @@ export default {
         zoom: { type: Number, default: 1 },
         gridOverlay: { type: Boolean, default: false }
     },
-    emits: ['save', 'leave', 'state-changed', 'update:columns', 'add-group', 'group-context'],
+    emits: ['save', 'leave', 'state-changed', 'update:columns', 'add-group', 'group-context', 'widget-dblclick'],
     setup () {
         const {
             selection, clearSelection, enable, disable,

@@ -34,9 +34,10 @@
             :key="w.id"
             :draggable="resizable"
             class="nrdb-ui-widget"
-            :class="[getWidgetClass(w), { 'designer-widget-selected': designerEnabled && isWidgetSelected(w.id) }]"
+            :class="[getWidgetClass(w), { 'designer-widget-selected': designerEnabled && (isWidgetSelected(w.id) || isWidgetMultiSelected(w.id)) }]"
             :style="[{display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)', 'gap': 'var(--widget-gap)', 'position': 'relative'}, widgetStyles(w)]"
-            @click.stop="designerEnabled ? onWidgetClick(w) : null"
+            @click.stop="designerEnabled ? onWidgetClick(w, $event) : null"
+            @dblclick.stop="designerEnabled ? onWidgetDblClick(w, $event) : null"
             @dragstart="!resizable ? null : onWidgetDragStart($event, $index, w)"
             @dragover="!resizable ? null : onWidgetDragOver($event, $index, w)"
             @dragend="!resizable ? null : onWidgetDragEnd($event, $index, w)"
@@ -46,7 +47,7 @@
         >
             <component :is="w.component" :id="w.id" ref="widget-content" :props="w.props" :state="w.state" :style="`grid-row-end: span ${w.props.height}`" />
             <!-- Designer selection outline -->
-            <div v-if="designerEnabled && isWidgetSelected(w.id)" class="designer-selection-border">
+            <div v-if="designerEnabled && (isWidgetSelected(w.id) || isWidgetMultiSelected(w.id))" class="designer-selection-border">
                 <div class="designer-selection-badge">{{ getWidgetTypeLabel(w) }}</div>
                 <v-btn
                     v-tooltip:bottom="'Delete Widget (Del)'"
@@ -131,7 +132,7 @@ export default {
             default: false
         }
     },
-    emits: ['resize', 'widget-added', 'widget-removed', 'widget-drop', 'refresh-state-from-store'],
+    emits: ['resize', 'widget-added', 'widget-removed', 'widget-drop', 'refresh-state-from-store', 'widget-dblclick'],
     data () {
         return {
             localWidgets: null,
@@ -250,8 +251,29 @@ export default {
         isWidgetSelected (widgetId) {
             return this.$store?.getters['designer/selectedWidgetId'] === widgetId
         },
-        onWidgetClick (widget) {
-            this.$store.dispatch('designer/selectWidget', { id: widget.id, widgetType: widget.type })
+        isWidgetMultiSelected (widgetId) {
+            return this.$store?.getters['designer/isMultiSelected']?.(widgetId) || false
+        },
+        onWidgetClick (widget, event) {
+            const addToSelection = event && (event.shiftKey || event.ctrlKey || event.metaKey)
+            this.$store.dispatch('designer/selectWidget', {
+                id: widget.id,
+                widgetType: widget.type,
+                addToSelection
+            })
+        },
+        onWidgetDblClick (widget, event) {
+            const el = event.currentTarget
+            const rect = el.getBoundingClientRect()
+            this.$emit('widget-dblclick', {
+                widget,
+                rect: {
+                    top: rect.top,
+                    left: rect.left,
+                    width: rect.width,
+                    height: Math.min(rect.height, 40)
+                }
+            })
         },
         getWidgetTypeLabel (widget) {
             const typeInfo = this.$store?.getters['widgetTypes/getType']?.(widget.type)

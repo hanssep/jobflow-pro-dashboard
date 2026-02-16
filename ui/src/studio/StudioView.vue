@@ -59,6 +59,16 @@
                         @update:columns="columnCount = $event"
                         @add-group="showCreateGroupDialog"
                         @group-context="onGroupContext"
+                        @widget-dblclick="onWidgetDblClick"
+                    />
+                    <InlineTextEditor
+                        v-if="inlineEdit.show"
+                        :widget-id="inlineEdit.widgetId"
+                        :initial-value="inlineEdit.value"
+                        :field-key="inlineEdit.key"
+                        :rect="inlineEdit.rect"
+                        @save="onInlineEditSave"
+                        @cancel="inlineEdit.show = false"
                     />
                 </div>
                 <transition name="slide-right">
@@ -166,6 +176,7 @@ import { useDesignerState } from '../designer/composables/useDesignerState.js'
 import { initialise as initEditMode } from '../EditTracking.js'
 
 import ContextMenu from './ContextMenu.vue'
+import InlineTextEditor from './InlineTextEditor.vue'
 import PageCreationDialog from './dialogs/PageCreationDialog.vue'
 import InspectorPanel from './inspector/InspectorPanel.vue'
 import PageGrid from './PageGrid.vue'
@@ -175,7 +186,7 @@ import StudioApi from './composables/useStudioApi.js'
 
 export default {
     name: 'StudioView',
-    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ContextMenu, PageCreationDialog },
+    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ContextMenu, PageCreationDialog, InlineTextEditor },
     setup () {
         const { isPropertiesVisible } = useDesignerState()
         return { isPropertiesVisible }
@@ -218,6 +229,14 @@ export default {
                 show: false,
                 text: '',
                 color: 'error'
+            },
+            inlineEdit: {
+                show: false,
+                widgetId: null,
+                widgetType: null,
+                key: 'label',
+                value: '',
+                rect: { top: 0, left: 0, width: 120, height: 32 }
             }
         }
     },
@@ -324,9 +343,13 @@ export default {
                 e.preventDefault()
                 this.zoomReset()
             }
-            // Escape → deselect or leave
+            // Escape → close inline editor, deselect, or leave
             if (e.key === 'Escape') {
                 e.preventDefault()
+                if (this.inlineEdit.show) {
+                    this.inlineEdit.show = false
+                    return
+                }
                 const selection = this.$store.getters['designer/selection']
                 if (selection) {
                     this.$store.dispatch('designer/clearSelection')
@@ -792,6 +815,60 @@ export default {
             })
             if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
         },
+        // ── Inline text editing ─────────────────────────────────────────────
+        onWidgetDblClick ({ widget, rect }) {
+            // Determine the editable text field based on widget type
+            const INLINE_EDITABLE = {
+                'ui-button': 'label',
+                'ui-text': 'label',
+                'ui-switch': 'label',
+                'ui-slider': 'label',
+                'ui-text-input': 'label',
+                'ui-dropdown': 'label',
+                'ui-number-input': 'label',
+                'ui-radio-group': 'label',
+                'ui-form': 'label',
+                'ui-date-picker': 'label',
+                'ui-table': 'label',
+                'ui-gauge': 'label',
+                'ui-chart': 'label'
+            }
+            const fieldKey = INLINE_EDITABLE[widget.type]
+            if (!fieldKey) return
+
+            const currentValue = widget.props?.[fieldKey] || ''
+            // Calculate position relative to the canvas container
+            const canvasEl = this.$refs.canvas?.$el
+            if (!canvasEl) return
+            const canvasRect = canvasEl.getBoundingClientRect()
+
+            this.inlineEdit = {
+                show: true,
+                widgetId: widget.id,
+                widgetType: widget.type,
+                key: fieldKey,
+                value: currentValue,
+                rect: {
+                    top: rect.top - canvasRect.top,
+                    left: rect.left - canvasRect.left,
+                    width: rect.width,
+                    height: rect.height
+                }
+            }
+        },
+        onInlineEditSave ({ widgetId, key, value }) {
+            this.inlineEdit.show = false
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                id: widgetId,
+                key,
+                value
+            })
+            if (this.$refs.canvas) {
+                this.$refs.canvas.updateEditStateObjects()
+            }
+        },
+
         addSpacerToGroup () {
             const target = this.contextMenuTarget
             if (!target) return
