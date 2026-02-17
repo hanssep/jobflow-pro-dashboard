@@ -18,9 +18,9 @@ export const WIDGET_SCHEMAS = {
             { key: 'iconPosition', type: 'select', label: 'Icon Position', options: ['left', 'right'] }
         ],
         style: [
-            { key: 'color', type: 'color', label: 'Background Color' },
-            { key: 'textColor', type: 'color', label: 'Text Color' },
-            { key: 'iconColor', type: 'color', label: 'Icon Color' },
+            { key: 'color', type: 'color', label: 'Background Color', themeToken: 'primary' },
+            { key: 'textColor', type: 'color', label: 'Text Color', themeToken: 'text' },
+            { key: 'iconColor', type: 'color', label: 'Icon Color', themeToken: 'primary' },
             { key: 'variant', type: 'toggle-group', label: 'Variant', options: [
                 { value: 'flat', label: 'Flat' },
                 { value: 'outlined', label: 'Outlined' },
@@ -48,7 +48,7 @@ export const WIDGET_SCHEMAS = {
             { key: 'layout', type: 'select', label: 'Layout', options: ['row-spread', 'row-left', 'row-center', 'row-right', 'col-center'] },
             { key: 'font', type: 'text', label: 'Font' },
             { key: 'fontSize', type: 'text', label: 'Font Size' },
-            { key: 'color', type: 'color', label: 'Color' },
+            { key: 'color', type: 'color', label: 'Color', themeToken: 'text' },
             { key: 'className', type: 'text', label: 'CSS Class' }
         ],
         layout: [
@@ -93,7 +93,7 @@ export const WIDGET_SCHEMAS = {
         ],
         style: [
             { key: 'icon', type: 'icon', label: 'Icon' },
-            { key: 'color', type: 'color', label: 'Color' },
+            { key: 'color', type: 'color', label: 'Color', themeToken: 'primary' },
             { key: 'className', type: 'text', label: 'CSS Class' }
         ],
         layout: [
@@ -114,7 +114,7 @@ export const WIDGET_SCHEMAS = {
             { key: 'thumbLabel', type: 'boolean', label: 'Thumb Label' }
         ],
         style: [
-            { key: 'color', type: 'color', label: 'Color' },
+            { key: 'color', type: 'color', label: 'Color', themeToken: 'primary' },
             { key: 'iconPrepend', type: 'icon', label: 'Prepend Icon' },
             { key: 'iconAppend', type: 'icon', label: 'Append Icon' },
             { key: 'className', type: 'text', label: 'CSS Class' }
@@ -135,8 +135,8 @@ export const WIDGET_SCHEMAS = {
             { key: 'decouple', type: 'boolean', label: 'Decouple' }
         ],
         style: [
-            { key: 'oncolor', type: 'color', label: 'On Color' },
-            { key: 'offcolor', type: 'color', label: 'Off Color' },
+            { key: 'oncolor', type: 'color', label: 'On Color', themeToken: 'primary' },
+            { key: 'offcolor', type: 'color', label: 'Off Color', themeToken: 'groupBg' },
             { key: 'onicon', type: 'icon', label: 'On Icon' },
             { key: 'officon', type: 'icon', label: 'Off Icon' },
             { key: 'layout', type: 'select', label: 'Layout', options: ['row-spread', 'row-left', 'row-center', 'row-right', 'col-center'] },
@@ -254,7 +254,7 @@ export const WIDGET_SCHEMAS = {
             { key: 'columns', type: 'number', label: 'Columns' }
         ],
         style: [
-            { key: 'color', type: 'color', label: 'Color' },
+            { key: 'color', type: 'color', label: 'Color', themeToken: 'primary' },
             { key: 'className', type: 'text', label: 'CSS Class' }
         ],
         layout: [

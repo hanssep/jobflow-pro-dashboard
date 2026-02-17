@@ -74,6 +74,11 @@ export default {
             } else {
                 props.modelValue = this.field.value
             }
+            // Pass theme token info for color fields
+            if (this.field.type === 'color' && this.field.themeToken) {
+                props.themeToken = this.field.themeToken
+                props.themeValue = this.field.themeValue || null
+            }
             return props
         }
     },

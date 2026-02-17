@@ -35,6 +35,11 @@ body {
     color: var(--nrdb-text-color);
 }
 
+.v-application {
+    font-family: var(--nrdb-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    font-size: var(--nrdb-font-size, 14px);
+}
+
 main {
     padding: var(--nrdb-main-padding);
 }

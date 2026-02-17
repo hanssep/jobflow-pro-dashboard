@@ -194,11 +194,37 @@ export default {
         widgetTypeIcon () {
             return this.widgetTypeInfo?.icon || 'mdi-puzzle-outline'
         },
+        currentTheme () {
+            if (!this.selectedWidget) return null
+            // Find the page for this widget, then get its theme
+            const groups = this.$store.state.ui.groups || {}
+            const groupId = this.selectedWidget.props?.group
+            const group = groupId ? groups[groupId] : null
+            const pageId = group?.page
+            const page = pageId ? this.$store.state.ui.pages?.[pageId] : null
+            const themeId = page?.theme
+            return themeId ? this.$store.state.ui.themes?.[themeId] : null
+        },
         studioSchema () {
             if (!this.selection || !this.selectedWidget) {
                 return { content: [], style: [], layout: [] }
             }
-            return getStudioSchema(this.$store, this.selection.widgetType, this.selectedWidget.props)
+            const schema = getStudioSchema(this.$store, this.selection.widgetType, this.selectedWidget.props)
+            // Inject themeValue for fields that have themeToken
+            if (this.currentTheme) {
+                const injectThemeValues = (fields) => {
+                    return fields.map(f => {
+                        if (f.themeToken && this.currentTheme.colors) {
+                            return { ...f, themeValue: this.currentTheme.colors[f.themeToken] || null }
+                        }
+                        return f
+                    })
+                }
+                schema.content = injectThemeValues(schema.content)
+                schema.style = injectThemeValues(schema.style)
+                schema.layout = injectThemeValues(schema.layout)
+            }
+            return schema
         },
         layoutFieldsWithoutSize () {
             return this.studioSchema.layout.filter(f => f.key !== 'width' && f.key !== 'height')

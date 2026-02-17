@@ -353,6 +353,30 @@ export default {
                 // widget background
                 colors.surface = this.theme.colors.groupBg
 
+                // Additional semantic colors
+                colors.accent = this.theme.colors.accent || '#ff6b99'
+                colors.secondary = this.theme.colors.secondary || '#26ff8c'
+                colors.success = this.theme.colors.success || '#a5d64c'
+                colors.warning = this.theme.colors.warning || '#ff8e00'
+                colors.error = this.theme.colors.error || '#ff5252'
+                colors.info = this.theme.colors.info || '#ff53d0'
+
+                // Text color
+                sizes['--nrdb-text-color'] = this.theme.colors.text || '#111111'
+
+                // Typography
+                const fontMap = {
+                    'System Default': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    Inter: '"Inter", sans-serif',
+                    Roboto: '"Roboto", sans-serif',
+                    Poppins: '"Poppins", sans-serif',
+                    'Open Sans': '"Open Sans", sans-serif',
+                    Lato: '"Lato", sans-serif',
+                    'Exo 2': '"Exo 2", sans-serif'
+                }
+                sizes['--nrdb-font-family'] = fontMap[this.theme.sizes.fontFamily] || fontMap['System Default']
+                sizes['--nrdb-font-size'] = this.theme.sizes.baseFontSize || '14px'
+
                 // sizes
                 sizes['--page-padding'] = this.theme.sizes.pagePadding
                 sizes['--group-gap'] = this.theme.sizes.groupGap

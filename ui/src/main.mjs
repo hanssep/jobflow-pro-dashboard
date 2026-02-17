@@ -48,13 +48,13 @@ const theme = {
         'group-background': defaultTheme ? defaultTheme.colors.groupBg : '#ffffff',
         'group-outline': defaultTheme ? defaultTheme.colors.groupOutline : '#d1d1d1',
         primary: defaultTheme ? defaultTheme.colors.primary : '#0094CE',
-        accent: '#ff6b99',
-        secondary: '#26ff8c',
-        success: '#a5d64c',
+        accent: defaultTheme?.colors?.accent || '#ff6b99',
+        secondary: defaultTheme?.colors?.secondary || '#26ff8c',
+        success: defaultTheme?.colors?.success || '#a5d64c',
         surface: defaultTheme ? defaultTheme.colors.surface : '#ffffff',
-        info: '#ff53d0',
-        warning: '#ff8e00',
-        error: '#ff5252'
+        info: defaultTheme?.colors?.info || '#ff53d0',
+        warning: defaultTheme?.colors?.warning || '#ff8e00',
+        error: defaultTheme?.colors?.error || '#ff5252'
     }
 }
 
