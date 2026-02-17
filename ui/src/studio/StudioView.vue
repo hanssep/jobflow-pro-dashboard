@@ -12,6 +12,7 @@
             :zoom="zoom"
             :column-count="columnCount"
             :grid-overlay="gridOverlay"
+            :multi-select-count="multiSelectionCount"
             @create-page="createPage"
             @go-back="goBack"
             @back-to-pages="backToPages"
@@ -26,6 +27,8 @@
             @zoom-fit="zoomFit"
             @toggle-grid-overlay="gridOverlay = !gridOverlay"
             @toggle-theme-editor="toggleThemeEditor"
+            @toggle-palette="togglePalette"
+            @align="onAlign"
             @page-settings="showEditPageDialog"
         />
         <v-main class="studio-main">
@@ -46,6 +49,11 @@
 
             <!-- Editing mode: canvas + property panel -->
             <div v-else-if="mode === 'editing'" class="studio-editor">
+                <transition name="slide-left">
+                    <div v-if="isPaletteVisible" class="studio-editor__palette">
+                        <WidgetPalette />
+                    </div>
+                </transition>
                 <div class="studio-editor__canvas">
                     <StudioCanvas
                         ref="canvas"
@@ -212,6 +220,7 @@
 import { mapState, mapGetters } from 'vuex'
 
 import { useDesignerState } from '../designer/composables/useDesignerState.js'
+import WidgetPalette from '../designer/panels/WidgetPalette.vue'
 import { initialise as initEditMode } from '../EditTracking.js'
 
 import { getStyleKeys } from './schemas/widgetSchemas.js'
@@ -228,10 +237,10 @@ import StudioApi from './composables/useStudioApi.js'
 
 export default {
     name: 'StudioView',
-    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ThemeEditorPanel, ContextMenu, PageCreationDialog, GroupCreationDialog, InlineTextEditor },
+    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ThemeEditorPanel, ContextMenu, PageCreationDialog, GroupCreationDialog, InlineTextEditor, WidgetPalette },
     setup () {
-        const { isPropertiesVisible, isThemeEditorVisible, toggleThemeEditor } = useDesignerState()
-        return { isPropertiesVisible, isThemeEditorVisible, toggleThemeEditor }
+        const { isPropertiesVisible, isThemeEditorVisible, isPaletteVisible, toggleThemeEditor, togglePalette } = useDesignerState()
+        return { isPropertiesVisible, isThemeEditorVisible, isPaletteVisible, toggleThemeEditor, togglePalette }
     },
     data () {
         return {
@@ -326,6 +335,9 @@ export default {
             return Object.values(this.groups)
                 .filter(g => g.page === this.activePageId)
                 .map(g => ({ id: g.id, name: g.name || g.id }))
+        },
+        multiSelectionCount () {
+            return this.$store.getters['designer/multiSelectionCount'] || 0
         },
         contextMenuGroupId () {
             const target = this.contextMenuTarget
@@ -565,6 +577,7 @@ export default {
         // Breakpoint & zoom
         setPreviewBreakpoint (bp) {
             this.previewBreakpoint = bp
+            this.$store.commit('designer/SET_ACTIVE_BREAKPOINT', bp)
         },
         setZoom (level) {
             this.zoom = Math.round(Math.min(2, Math.max(0.25, level)) * 100) / 100
@@ -1077,6 +1090,57 @@ export default {
             })
         },
 
+        // ── Alignment & distribution ─────────────────────────────────────────
+        onAlign (action) {
+            const multi = this.$store.getters['designer/multiSelection']
+            if (!multi || multi.length < 2) return
+            const widgetItems = multi.filter(i => i.type === 'widget')
+            if (widgetItems.length < 2) return
+            const widgets = widgetItems
+                .map(i => this.$store.state.ui.widgets[i.id])
+                .filter(Boolean)
+            if (widgets.length < 2) return
+
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            if (action === 'match-width') {
+                const targetWidth = parseInt(widgets[0].props.width) || 3
+                for (let i = 1; i < widgets.length; i++) {
+                    this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                        id: widgets[i].id,
+                        key: 'width',
+                        value: targetWidth
+                    })
+                }
+            } else if (action === 'match-height') {
+                const targetHeight = parseInt(widgets[0].props.height) || 1
+                for (let i = 1; i < widgets.length; i++) {
+                    this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                        id: widgets[i].id,
+                        key: 'height',
+                        value: targetHeight
+                    })
+                }
+            } else if (action === 'distribute-width') {
+                // Find the group of the first widget and distribute evenly
+                const groupId = widgets[0].props?.group
+                if (groupId) {
+                    const group = this.$store.state.ui.groups[groupId]
+                    const groupWidth = parseInt(group?.width) || 12
+                    const evenWidth = Math.max(1, Math.floor(groupWidth / widgets.length))
+                    for (const w of widgets) {
+                        this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                            id: w.id,
+                            key: 'width',
+                            value: evenWidth
+                        })
+                    }
+                }
+            }
+            if (this.$refs.canvas) {
+                this.$refs.canvas.updateEditStateObjects()
+            }
+        },
+
         // ── Auto-save draft ──────────────────────────────────────────────────
         _scheduleDraftSave () {
             if (this._draftTimer) clearTimeout(this._draftTimer)
@@ -1198,6 +1262,19 @@ export default {
     height: calc(100vh - 48px);
     overflow: hidden;
 }
+.studio-editor__palette {
+    width: 260px;
+    min-width: 260px;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border-right: 1px solid #dee2e6;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+    --v-theme-on-surface: 0, 0, 0;
+    --v-theme-on-background: 0, 0, 0;
+    --v-theme-surface: 255, 255, 255;
+    --v-theme-background: 255, 255, 255;
+    color: rgba(0, 0, 0, 0.87);
+}
 .studio-editor__canvas {
     flex: 1;
     min-width: 0;
@@ -1226,6 +1303,19 @@ export default {
 .slide-right-enter-from,
 .slide-right-leave-to {
     transform: translateX(100%);
+    opacity: 0;
+    width: 0;
+    min-width: 0;
+}
+
+/* Left panel slide transition */
+.slide-left-enter-active,
+.slide-left-leave-active {
+    transition: all 0.2s ease;
+}
+.slide-left-enter-from,
+.slide-left-leave-to {
+    transform: translateX(-100%);
     opacity: 0;
     width: 0;
     min-width: 0;

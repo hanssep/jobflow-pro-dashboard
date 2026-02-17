@@ -108,6 +108,16 @@
 
             <v-divider vertical class="mx-1" />
 
+            <!-- Widget palette toggle -->
+            <v-btn
+                v-tooltip="'Toggle Widget Palette'"
+                :variant="paletteVisible ? 'flat' : 'text'"
+                icon="mdi-puzzle-outline"
+                size="small"
+                :color="paletteVisible ? 'primary' : undefined"
+                class="studio-toolbar__btn"
+                @click="$emit('toggle-palette')"
+            />
             <!-- Grid overlay toggle -->
             <v-btn
                 v-tooltip="'Toggle Grid Overlay'"
@@ -138,6 +148,35 @@
                 class="studio-toolbar__btn"
                 @click="$emit('toggle-properties')"
             />
+
+            <!-- Alignment tools (multi-select) -->
+            <template v-if="multiSelectCount >= 2">
+                <v-divider vertical class="mx-1" />
+                <v-btn
+                    v-tooltip="'Match Width'"
+                    variant="text"
+                    icon="mdi-arrow-expand-horizontal"
+                    size="small"
+                    class="studio-toolbar__btn"
+                    @click="$emit('align', 'match-width')"
+                />
+                <v-btn
+                    v-tooltip="'Match Height'"
+                    variant="text"
+                    icon="mdi-arrow-expand-vertical"
+                    size="small"
+                    class="studio-toolbar__btn"
+                    @click="$emit('align', 'match-height')"
+                />
+                <v-btn
+                    v-tooltip="'Distribute Evenly'"
+                    variant="text"
+                    icon="mdi-distribute-horizontal-center"
+                    size="small"
+                    class="studio-toolbar__btn"
+                    @click="$emit('align', 'distribute-width')"
+                />
+            </template>
 
             <v-divider vertical class="mx-1" />
 
@@ -213,20 +252,22 @@ export default {
         previewBreakpoint: { type: String, default: 'auto' },
         zoom: { type: Number, default: 1 },
         columnCount: { type: Number, default: 12 },
-        gridOverlay: { type: Boolean, default: false }
+        gridOverlay: { type: Boolean, default: false },
+        multiSelectCount: { type: Number, default: 0 }
     },
     emits: [
         'create-page', 'go-back', 'back-to-pages',
         'save', 'discard', 'undo', 'redo', 'toggle-properties',
-        'toggle-theme-editor',
+        'toggle-theme-editor', 'toggle-palette',
         'update:preview-breakpoint',
         'zoom-in', 'zoom-out', 'zoom-reset', 'zoom-fit',
         'toggle-grid-overlay',
-        'page-settings'
+        'page-settings',
+        'align'
     ],
     setup () {
-        const { isPropertiesVisible, isThemeEditorVisible } = useDesignerState()
-        return { propertiesVisible: isPropertiesVisible, themeEditorVisible: isThemeEditorVisible }
+        const { isPropertiesVisible, isThemeEditorVisible, isPaletteVisible } = useDesignerState()
+        return { propertiesVisible: isPropertiesVisible, themeEditorVisible: isThemeEditorVisible, paletteVisible: isPaletteVisible }
     },
     data () {
         return {

@@ -151,12 +151,21 @@ export default {
             return (widget) => {
                 const styles = {}
                 let height = widget.props.height
-                const width = widget.props.width
+                let width = widget.props.width
                 if (widget.type === 'ui-form') {
                     // form is unique in that height is defined by the number of fields
                     // so, if the size is set to "auto", we need to set the height/rows to the number of fields, +2 for label and submission buttons
                     if (height === null || height === 0) {
                         height = (widget.props.options.length / (widget.props.splitLayout ? 2 : 1)) + 2
+                    }
+                }
+                // Apply breakpoint overrides if active
+                const bpOverrides = widget.props.breakpointOverrides
+                if (bpOverrides) {
+                    const activeBp = this.$store?.state?.designer?.activeBreakpoint
+                    if (activeBp && activeBp !== 'auto') {
+                        if (bpOverrides[activeBp]?.width) width = bpOverrides[activeBp].width
+                        if (bpOverrides[activeBp]?.height) height = bpOverrides[activeBp].height
                     }
                 }
                 styles['grid-row-end'] = `span ${height}`

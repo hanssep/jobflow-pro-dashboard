@@ -20,7 +20,8 @@ const state = () => ({
         palette: true,       // Left panel visible
         properties: true, // Right panel visible
         themeEditor: false // Theme editor panel visible
-    }
+    },
+    activeBreakpoint: 'auto' // Current responsive breakpoint for editing
 })
 
 const getters = {
@@ -62,6 +63,9 @@ const getters = {
     },
     multiSelectionCount (state) {
         return state.multiSelection.length
+    },
+    activeBreakpoint (state) {
+        return state.activeBreakpoint
     }
 }
 
@@ -142,6 +146,9 @@ const mutations = {
     },
     SET_STYLE_CLIPBOARD (state, data) {
         state.styleClipboard = data ? { ...data } : null
+    },
+    SET_ACTIVE_BREAKPOINT (state, bp) {
+        state.activeBreakpoint = bp || 'auto'
     }
 }
 

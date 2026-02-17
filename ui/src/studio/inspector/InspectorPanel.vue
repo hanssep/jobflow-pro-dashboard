@@ -104,11 +104,38 @@
                         <div class="inspector-panel__fields">
                             <SizeField
                                 v-if="hasSize"
-                                :width="currentWidth"
-                                :height="currentHeight"
+                                :width="effectiveWidth"
+                                :height="effectiveHeight"
                                 @update:width="onSizeChange('width', $event)"
                                 @update:height="onSizeChange('height', $event)"
                             />
+                            <!-- Breakpoint override controls -->
+                            <div v-if="hasSize && activeBreakpoint !== 'auto'" class="inspector-panel__bp-override">
+                                <v-switch
+                                    v-model="bpOverrideEnabled"
+                                    density="compact"
+                                    hide-details
+                                    color="primary"
+                                    class="inspector-panel__bp-toggle"
+                                >
+                                    <template #label>
+                                        <span class="inspector-panel__bp-label">
+                                            Customize for {{ activeBreakpointLabel }}
+                                        </span>
+                                    </template>
+                                </v-switch>
+                                <div v-if="hasBpWidthOverride || hasBpHeightOverride" class="inspector-panel__bp-badge">
+                                    <v-chip size="x-small" color="info" variant="tonal" label>override</v-chip>
+                                    <v-btn
+                                        size="x-small"
+                                        variant="text"
+                                        color="error"
+                                        @click="clearBreakpointOverrides"
+                                    >
+                                        Clear
+                                    </v-btn>
+                                </div>
+                            </div>
                             <PropertyField
                                 v-for="field in layoutFieldsWithoutSize"
                                 :key="field.key"
@@ -232,11 +259,59 @@ export default {
         hasSize () {
             return this.selectedWidget?.props?.width !== undefined || this.selectedWidget?.props?.height !== undefined
         },
+        activeBreakpoint () {
+            return this.$store.getters['designer/activeBreakpoint'] || 'auto'
+        },
+        activeBreakpointLabel () {
+            const labels = { desktop: 'Desktop', laptop: 'Laptop', tablet: 'Tablet', mobile: 'Mobile' }
+            return labels[this.activeBreakpoint] || this.activeBreakpoint
+        },
         currentWidth () {
             return parseInt(this.selectedWidget?.props?.width) || 1
         },
         currentHeight () {
             return parseInt(this.selectedWidget?.props?.height) || 1
+        },
+        bpOverrides () {
+            if (!this.selectedWidget) return null
+            return this.selectedWidget.props.breakpointOverrides?.[this.activeBreakpoint] || null
+        },
+        hasBpWidthOverride () {
+            return this.bpOverrides?.width !== undefined
+        },
+        hasBpHeightOverride () {
+            return this.bpOverrides?.height !== undefined
+        },
+        bpOverrideEnabled: {
+            get () {
+                return this.hasBpWidthOverride || this.hasBpHeightOverride
+            },
+            set (val) {
+                if (val && this.selectedWidget) {
+                    // Initialize override with current base values
+                    this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+                    this.$store.dispatch('wysiwyg/updateWidgetBreakpointProperty', {
+                        id: this.selection.id,
+                        breakpoint: this.activeBreakpoint,
+                        key: 'width',
+                        value: this.currentWidth
+                    })
+                } else if (!val && this.selectedWidget) {
+                    this.clearBreakpointOverrides()
+                }
+            }
+        },
+        effectiveWidth () {
+            if (this.activeBreakpoint !== 'auto' && this.hasBpWidthOverride) {
+                return parseInt(this.bpOverrides.width) || 1
+            }
+            return this.currentWidth
+        },
+        effectiveHeight () {
+            if (this.activeBreakpoint !== 'auto' && this.hasBpHeightOverride) {
+                return parseInt(this.bpOverrides.height) || 1
+            }
+            return this.currentHeight
         },
         groupSchema () {
             if (!this.selectedGroup) return { sections: [] }
@@ -300,11 +375,39 @@ export default {
         onSizeChange (dimension, value) {
             if (!this.selection) return
             this.$store.dispatch('wysiwyg/pushUndoSnapshot')
-            this.$store.dispatch('wysiwyg/updateWidgetProperty', {
-                id: this.selection.id,
-                key: dimension,
-                value
-            })
+            // If breakpoint override is active, update the override instead
+            if (this.activeBreakpoint !== 'auto' && this.bpOverrideEnabled) {
+                this.$store.dispatch('wysiwyg/updateWidgetBreakpointProperty', {
+                    id: this.selection.id,
+                    breakpoint: this.activeBreakpoint,
+                    key: dimension,
+                    value
+                })
+            } else {
+                this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                    id: this.selection.id,
+                    key: dimension,
+                    value
+                })
+            }
+        },
+        clearBreakpointOverrides () {
+            if (!this.selection || this.activeBreakpoint === 'auto') return
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            if (this.hasBpWidthOverride) {
+                this.$store.dispatch('wysiwyg/clearWidgetBreakpointProperty', {
+                    id: this.selection.id,
+                    breakpoint: this.activeBreakpoint,
+                    key: 'width'
+                })
+            }
+            if (this.hasBpHeightOverride) {
+                this.$store.dispatch('wysiwyg/clearWidgetBreakpointProperty', {
+                    id: this.selection.id,
+                    breakpoint: this.activeBreakpoint,
+                    key: 'height'
+                })
+            }
         },
         onGroupFieldChange ({ key, value }) {
             if (!this.selectedGroup) return
@@ -413,5 +516,28 @@ export default {
     text-align: center;
     font-size: 0.8125rem;
     color: rgba(var(--v-theme-on-surface), 0.4);
+}
+.inspector-panel__bp-override {
+    padding: 8px 0;
+    border-top: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
+    margin-top: 4px;
+}
+.inspector-panel__bp-toggle {
+    margin: 0;
+}
+.inspector-panel__bp-toggle :deep(.v-label) {
+    font-size: 0.75rem;
+    opacity: 1;
+}
+.inspector-panel__bp-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(var(--v-theme-on-surface), 0.7);
+}
+.inspector-panel__bp-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
 }
 </style>

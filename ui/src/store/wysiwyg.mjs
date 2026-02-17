@@ -529,6 +529,34 @@ const actions = {
             // ignore
         }
     },
+    updateWidgetBreakpointProperty ({ rootState, commit }, { id, breakpoint, key, value }) {
+        const widget = rootState.ui.widgets[id]
+        if (!widget) throw new Error('Widget not found: ' + id)
+        if (!widget.props.breakpointOverrides) widget.props.breakpointOverrides = {}
+        if (!widget.props.breakpointOverrides[breakpoint]) widget.props.breakpointOverrides[breakpoint] = {}
+        widget.props.breakpointOverrides[breakpoint][key] = value
+        commit('ui/widgets', rootState.ui.widgets, { root: true })
+    },
+    updateGroupBreakpointProperty ({ rootState, commit }, { id, breakpoint, key, value }) {
+        const group = rootState.ui.groups[id]
+        if (!group) throw new Error('Group not found: ' + id)
+        if (!group.breakpointOverrides) group.breakpointOverrides = {}
+        if (!group.breakpointOverrides[breakpoint]) group.breakpointOverrides[breakpoint] = {}
+        group.breakpointOverrides[breakpoint][key] = value
+        commit('ui/groups', { ...rootState.ui.groups }, { root: true })
+    },
+    clearWidgetBreakpointProperty ({ rootState, commit }, { id, breakpoint, key }) {
+        const widget = rootState.ui.widgets[id]
+        if (!widget || !widget.props.breakpointOverrides?.[breakpoint]) return
+        delete widget.props.breakpointOverrides[breakpoint][key]
+        if (Object.keys(widget.props.breakpointOverrides[breakpoint]).length === 0) {
+            delete widget.props.breakpointOverrides[breakpoint]
+        }
+        if (Object.keys(widget.props.breakpointOverrides).length === 0) {
+            delete widget.props.breakpointOverrides
+        }
+        commit('ui/widgets', rootState.ui.widgets, { root: true })
+    },
     redo ({ rootState, state, commit }) {
         if (state.redoStack.length === 0) {
             return false

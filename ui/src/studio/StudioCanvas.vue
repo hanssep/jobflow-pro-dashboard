@@ -31,7 +31,7 @@
                     :key="g.id"
                     class="nrdb-ui-group"
                     :class="getGroupClass(g)"
-                    :style="`grid-column-end: span min(${ g.width }, var(--layout-columns))`"
+                    :style="`grid-column-end: span min(${ getGroupWidth(g) }, var(--layout-columns))`"
                     :draggable="true"
                     @dragstart="onGroupDragStart($event, $index, g)"
                     @dragover="onGroupDragOver($event, $index, g)"
@@ -318,6 +318,13 @@ export default {
         doExit () {
             this.$store.dispatch('wysiwyg/endEditTracking')
             this.disable()
+        },
+        getGroupWidth (group) {
+            const activeBp = this.$store?.state?.designer?.activeBreakpoint
+            if (activeBp && activeBp !== 'auto' && group.breakpointOverrides?.[activeBp]?.width) {
+                return group.breakpointOverrides[activeBp].width
+            }
+            return group.width
         },
         onCanvasContextMenu (e) {
             this.$emit('canvas-context', { x: e.clientX, y: e.clientY })
