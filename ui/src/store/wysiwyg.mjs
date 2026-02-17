@@ -330,7 +330,7 @@ const actions = {
             slimCopy[key] = {
                 id: w.id,
                 type: w.type,
-                props: { ...w.props },
+                props: JSON.parse(JSON.stringify(w.props)),
                 layout: { ...w.layout }
             }
         }
@@ -340,7 +340,6 @@ const actions = {
         console.log('revertEdits')
         const uiWidgets = rootState.ui.widgets
         const uiGroups = rootState.ui.groups
-        const groupPropertiesOfInterest = ['width', 'height', 'order']
         for (const key in uiGroups) {
             const existingGroup = uiGroups[key]
             const originalGroup = state.originalGroups[key]
@@ -349,8 +348,11 @@ const actions = {
                 delete uiGroups[key]
             }
             if (originalGroup) {
-                for (const prop of groupPropertiesOfInterest) {
-                    existingGroup[prop] = originalGroup[prop]
+                // Restore all group props from original (skip identity fields)
+                for (const prop of Object.keys(originalGroup)) {
+                    if (prop !== 'id' && prop !== 'type' && prop !== 'page') {
+                        existingGroup[prop] = originalGroup[prop]
+                    }
                 }
             }
         }
@@ -358,7 +360,6 @@ const actions = {
         /** @type {Widgets} */
         const originalWidgets = state.originalWidgets
         const widgetLayoutPropertiesOfInterest = ['width', 'height', 'order']
-        const widgetPropsPropertiesOfInterest = ['width', 'height', 'order']
         for (const key in originalWidgets) {
             const originalWidget = originalWidgets[key]
             if (!uiWidgets[key] && originalWidget) {
@@ -370,8 +371,16 @@ const actions = {
                 delete uiWidgets[key]
             }
             if (uiWidgets[key] && originalWidget) {
-                for (const prop of widgetPropsPropertiesOfInterest) {
-                    uiWidgets[key].props[prop] = originalWidget.props[prop]
+                // Restore all props from original
+                const origProps = originalWidget.props || {}
+                for (const prop of Object.keys(origProps)) {
+                    uiWidgets[key].props[prop] = origProps[prop]
+                }
+                // Remove props that don't exist in original (were added after)
+                for (const prop of Object.keys(uiWidgets[key].props)) {
+                    if (!(prop in origProps)) {
+                        delete uiWidgets[key].props[prop]
+                    }
                 }
                 for (const prop of widgetLayoutPropertiesOfInterest) {
                     uiWidgets[key].layout[prop] = originalWidget.layout[prop]
@@ -401,7 +410,7 @@ const actions = {
             snapshot.widgets[key] = {
                 id: w.id,
                 type: w.type,
-                props: { ...w.props },
+                props: JSON.parse(JSON.stringify(w.props)),
                 layout: { ...w.layout }
             }
         }
@@ -418,24 +427,31 @@ const actions = {
         const snapshot = state.undoStack.pop()
         // restore groups
         const uiGroups = rootState.ui.groups
-        const groupPropertiesOfInterest = ['width', 'height', 'order']
         for (const key in snapshot.groups) {
             if (uiGroups[key]) {
-                for (const prop of groupPropertiesOfInterest) {
-                    uiGroups[key][prop] = snapshot.groups[key][prop]
+                const snapshotGroup = snapshot.groups[key]
+                for (const prop of Object.keys(snapshotGroup)) {
+                    if (prop !== 'id' && prop !== 'type' && prop !== 'page') {
+                        uiGroups[key][prop] = snapshotGroup[prop]
+                    }
                 }
             }
         }
         // restore widgets
         const uiWidgets = rootState.ui.widgets
-        const widgetPropsOfInterest = ['width', 'height', 'order', 'group']
         const widgetLayoutOfInterest = ['width', 'height', 'order']
         // restore existing widgets from snapshot
         for (const key in snapshot.widgets) {
             if (uiWidgets[key]) {
-                for (const prop of widgetPropsOfInterest) {
-                    if (snapshot.widgets[key].props[prop] !== undefined) {
-                        uiWidgets[key].props[prop] = snapshot.widgets[key].props[prop]
+                // Restore all props from snapshot
+                const snapshotProps = snapshot.widgets[key].props
+                for (const prop of Object.keys(snapshotProps)) {
+                    uiWidgets[key].props[prop] = snapshotProps[prop]
+                }
+                // Remove props that don't exist in snapshot (were added after snapshot)
+                for (const prop of Object.keys(uiWidgets[key].props)) {
+                    if (!(prop in snapshotProps)) {
+                        delete uiWidgets[key].props[prop]
                     }
                 }
                 for (const prop of widgetLayoutOfInterest) {
@@ -483,7 +499,7 @@ const actions = {
             draft.widgets[k] = {
                 id: w.id,
                 type: w.type,
-                props: { ...w.props },
+                props: JSON.parse(JSON.stringify(w.props)),
                 layout: { ...w.layout }
             }
         }
@@ -526,22 +542,29 @@ const actions = {
         const snapshot = state.redoStack.pop()
         // restore from redo snapshot (same logic as popUndoSnapshot)
         const uiGroups = rootState.ui.groups
-        const groupPropertiesOfInterest = ['width', 'height', 'order']
         for (const key in snapshot.groups) {
             if (uiGroups[key]) {
-                for (const prop of groupPropertiesOfInterest) {
-                    uiGroups[key][prop] = snapshot.groups[key][prop]
+                const snapshotGroup = snapshot.groups[key]
+                for (const prop of Object.keys(snapshotGroup)) {
+                    if (prop !== 'id' && prop !== 'type' && prop !== 'page') {
+                        uiGroups[key][prop] = snapshotGroup[prop]
+                    }
                 }
             }
         }
         const uiWidgets = rootState.ui.widgets
-        const widgetPropsOfInterest = ['width', 'height', 'order', 'group']
         const widgetLayoutOfInterest = ['width', 'height', 'order']
         for (const key in snapshot.widgets) {
             if (uiWidgets[key]) {
-                for (const prop of widgetPropsOfInterest) {
-                    if (snapshot.widgets[key].props[prop] !== undefined) {
-                        uiWidgets[key].props[prop] = snapshot.widgets[key].props[prop]
+                // Restore all props from snapshot
+                const snapshotProps = snapshot.widgets[key].props
+                for (const prop of Object.keys(snapshotProps)) {
+                    uiWidgets[key].props[prop] = snapshotProps[prop]
+                }
+                // Remove props that don't exist in snapshot (were added after snapshot)
+                for (const prop of Object.keys(uiWidgets[key].props)) {
+                    if (!(prop in snapshotProps)) {
+                        delete uiWidgets[key].props[prop]
                     }
                 }
                 for (const prop of widgetLayoutOfInterest) {
@@ -578,7 +601,7 @@ function _captureCurrentState (rootState) {
         snapshot.widgets[key] = {
             id: w.id,
             type: w.type,
-            props: { ...w.props },
+            props: JSON.parse(JSON.stringify(w.props)),
             layout: { ...w.layout }
         }
     }
