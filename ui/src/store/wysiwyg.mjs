@@ -222,7 +222,8 @@ const actions = {
                 width: width ?? 1,
                 height: height ?? 1
             },
-            state: { enabled: true, visible: true, class: '' }
+            state: { enabled: true, visible: true, class: '' },
+            __DB2_DESIGNER_ADDED: true
         }
         rootState.ui.widgets[widget.id] = widget
         commit('ui/widgets', rootState.ui.widgets, { root: true })

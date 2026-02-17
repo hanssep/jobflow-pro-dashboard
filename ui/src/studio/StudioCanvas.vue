@@ -5,11 +5,12 @@
         @wheel.ctrl.prevent="onCtrlWheel"
         @wheel.meta.prevent="onCtrlWheel"
     >
-        <div class="studio-canvas__body" @click.self="clearSelection">
+        <div class="studio-canvas__body" @click.self="clearSelection" @contextmenu.self.prevent="onCanvasContextMenu">
             <div
                 class="studio-canvas__viewport"
                 :style="viewportStyle"
                 @click.self="clearSelection"
+                @contextmenu.self.prevent="onCanvasContextMenu"
             >
                 <div
                     v-if="gridOverlay"
@@ -56,6 +57,7 @@
                                 @widget-removed="updateEditStateObjects"
                                 @widget-drop="onWidgetDrop"
                                 @widget-dblclick="$emit('widget-dblclick', $event)"
+                                @widget-contextmenu="$emit('widget-contextmenu', $event)"
                                 @refresh-state-from-store="updateEditStateObjects"
                             />
                         </template>
@@ -103,7 +105,7 @@ export default {
         zoom: { type: Number, default: 1 },
         gridOverlay: { type: Boolean, default: false }
     },
-    emits: ['save', 'leave', 'state-changed', 'update:columns', 'add-group', 'group-context', 'widget-dblclick'],
+    emits: ['save', 'leave', 'state-changed', 'update:columns', 'add-group', 'group-context', 'widget-dblclick', 'widget-contextmenu', 'canvas-context'],
     setup () {
         const {
             selection, clearSelection, enable, disable,
@@ -316,6 +318,9 @@ export default {
         doExit () {
             this.$store.dispatch('wysiwyg/endEditTracking')
             this.disable()
+        },
+        onCanvasContextMenu (e) {
+            this.$emit('canvas-context', { x: e.clientX, y: e.clientY })
         }
     }
 }

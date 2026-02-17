@@ -9,6 +9,7 @@ const state = () => ({
     selection: null,         // { type: 'widget'|'group', id: string, widgetType?: string } | null
     multiSelection: [],      // Array of { type, id, widgetType? } for multi-select
     clipboard: null,         // { type: 'widget', data: { widgetType, props, layout } } | null
+    styleClipboard: null,    // { widgetType: string, props: { key: value } } | null
     dragState: {
         active: false,
         source: null,        // 'palette' | 'canvas'
@@ -138,6 +139,9 @@ const mutations = {
     },
     SET_CLIPBOARD (state, clipboard) {
         state.clipboard = clipboard ? { ...clipboard } : null
+    },
+    SET_STYLE_CLIPBOARD (state, data) {
+        state.styleClipboard = data ? { ...data } : null
     }
 }
 

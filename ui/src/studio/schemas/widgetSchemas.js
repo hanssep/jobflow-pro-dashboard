@@ -373,3 +373,14 @@ export const WIDGET_SCHEMAS = {
 export function getWidgetSchema (widgetType) {
     return WIDGET_SCHEMAS[widgetType] || null
 }
+
+/**
+ * Get the style property keys for a widget type.
+ * @param {string} widgetType
+ * @returns {string[]} Array of style property keys
+ */
+export function getStyleKeys (widgetType) {
+    const schema = WIDGET_SCHEMAS[widgetType]
+    if (!schema || !schema.style) return []
+    return schema.style.map(f => f.key)
+}

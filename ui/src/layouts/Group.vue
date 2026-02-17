@@ -38,6 +38,7 @@
             :style="[{display: 'grid', 'grid-template-columns': 'minmax(0, 1fr)', 'gap': 'var(--widget-gap)', 'position': 'relative'}, widgetStyles(w)]"
             @click.stop="designerEnabled ? onWidgetClick(w, $event) : null"
             @dblclick.stop="designerEnabled ? onWidgetDblClick(w, $event) : null"
+            @contextmenu.stop.prevent="designerEnabled ? onWidgetContextMenu(w, $event) : null"
             @dragstart="!resizable ? null : onWidgetDragStart($event, $index, w)"
             @dragover="!resizable ? null : onWidgetDragOver($event, $index, w)"
             @dragend="!resizable ? null : onWidgetDragEnd($event, $index, w)"
@@ -132,7 +133,7 @@ export default {
             default: false
         }
     },
-    emits: ['resize', 'widget-added', 'widget-removed', 'widget-drop', 'refresh-state-from-store', 'widget-dblclick'],
+    emits: ['resize', 'widget-added', 'widget-removed', 'widget-drop', 'refresh-state-from-store', 'widget-dblclick', 'widget-contextmenu'],
     data () {
         return {
             localWidgets: null,
@@ -261,6 +262,14 @@ export default {
                 widgetType: widget.type,
                 addToSelection
             })
+        },
+        onWidgetContextMenu (widget, event) {
+            // Select the widget and emit contextmenu event for the parent
+            this.$store.dispatch('designer/selectWidget', {
+                id: widget.id,
+                widgetType: widget.type
+            })
+            this.$emit('widget-contextmenu', { widget, event })
         },
         onWidgetDblClick (widget, event) {
             const el = event.currentTarget

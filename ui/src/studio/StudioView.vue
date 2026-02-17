@@ -62,6 +62,8 @@
                         @add-group="showCreateGroupDialog"
                         @group-context="onGroupContext"
                         @widget-dblclick="onWidgetDblClick"
+                        @widget-contextmenu="onWidgetContext"
+                        @canvas-context="onCanvasContext"
                     />
                     <InlineTextEditor
                         v-if="inlineEdit.show"
@@ -139,14 +141,24 @@
         <ContextMenu
             ref="contextMenu"
             :target="contextMenuTarget"
+            :groups="canvasGroups"
+            :current-group-id="contextMenuGroupId"
+            :has-style-clipboard="!!$store.state.designer.styleClipboard"
+            :grid-overlay="gridOverlay"
             @duplicate="duplicateWidget"
             @delete="deleteContextWidget"
             @move-front="moveWidgetToFront"
             @move-back="moveWidgetToBack"
+            @copy-style="copyStyle"
+            @paste-style="pasteStyle"
+            @move-to-group="moveWidgetToGroup"
+            @change-group-width="changeGroupWidth"
             @add-spacer="addSpacerToGroup"
             @rename-group="renameContextGroup"
             @duplicate-group="duplicateContextGroup"
             @delete-group="confirmDeleteGroup(contextMenuTarget?.id)"
+            @add-group="showCreateGroupDialog"
+            @toggle-grid="gridOverlay = !gridOverlay"
         />
 
         <!-- Page creation/edit dialog -->
@@ -202,6 +214,7 @@ import { mapState, mapGetters } from 'vuex'
 import { useDesignerState } from '../designer/composables/useDesignerState.js'
 import { initialise as initEditMode } from '../EditTracking.js'
 
+import { getStyleKeys } from './schemas/widgetSchemas.js'
 import ContextMenu from './ContextMenu.vue'
 import InlineTextEditor from './InlineTextEditor.vue'
 import GroupCreationDialog from './dialogs/GroupCreationDialog.vue'
@@ -307,6 +320,22 @@ export default {
         previewWidth () {
             const widths = { desktop: 1920, laptop: 1280, tablet: 768, mobile: 375 }
             return widths[this.previewBreakpoint] || 0
+        },
+        canvasGroups () {
+            if (!this.activePageId || !this.groups) return []
+            return Object.values(this.groups)
+                .filter(g => g.page === this.activePageId)
+                .map(g => ({ id: g.id, name: g.name || g.id }))
+        },
+        contextMenuGroupId () {
+            const target = this.contextMenuTarget
+            if (!target) return ''
+            if (target.type === 'group') return target.id
+            if (target.type === 'widget') {
+                const widget = this.widgets?.[target.id]
+                return widget?.props?.group || ''
+            }
+            return ''
         }
     },
     watch: {
@@ -353,13 +382,21 @@ export default {
                 e.preventDefault()
                 this.duplicateWidget()
             }
-            // Ctrl+C → copy
-            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+            // Ctrl+C → copy widget, Ctrl+Shift+C → copy style
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !e.shiftKey) {
                 this.copyWidget()
             }
-            // Ctrl+V → paste
-            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && e.shiftKey) {
+                e.preventDefault()
+                this.copyStyle()
+            }
+            // Ctrl+V → paste widget, Ctrl+Shift+V → paste style
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !e.shiftKey) {
                 this.pasteWidget()
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v' && e.shiftKey) {
+                e.preventDefault()
+                this.pasteStyle()
             }
             // Ctrl+A → select all widgets in current page
             if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -678,6 +715,74 @@ export default {
             this.copyWidget()
             this.pasteWidget()
         },
+        copyStyle () {
+            const selection = this.$store.getters['designer/selection']
+            if (!selection || selection.type !== 'widget') return
+            const widget = this.$store.state.ui.widgets[selection.id]
+            if (!widget) return
+            const keys = getStyleKeys(widget.type)
+            if (!keys.length) return
+            const props = {}
+            for (const k of keys) {
+                if (k in widget.props) {
+                    props[k] = widget.props[k]
+                }
+            }
+            this.$store.commit('designer/SET_STYLE_CLIPBOARD', {
+                widgetType: widget.type,
+                props
+            })
+        },
+        pasteStyle () {
+            const clip = this.$store.state.designer.styleClipboard
+            if (!clip) return
+            const multi = this.$store.getters['designer/multiSelection']
+            const targets = multi && multi.length > 1
+                ? multi.filter(i => i.type === 'widget')
+                : (() => {
+                    const sel = this.$store.getters['designer/selection']
+                    return sel && sel.type === 'widget' ? [sel] : []
+                })()
+            if (!targets.length) return
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            for (const target of targets) {
+                const widget = this.$store.state.ui.widgets[target.id]
+                if (!widget) continue
+                const targetKeys = getStyleKeys(widget.type)
+                for (const k of targetKeys) {
+                    if (k in clip.props) {
+                        this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                            id: target.id,
+                            key: k,
+                            value: clip.props[k]
+                        })
+                    }
+                }
+            }
+            if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
+        },
+        moveWidgetToGroup (groupId) {
+            const target = this.contextMenuTarget
+            if (!target || target.type !== 'widget') return
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            this.$store.dispatch('wysiwyg/updateWidgetProperty', {
+                id: target.id,
+                key: 'group',
+                value: groupId
+            })
+            if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
+        },
+        changeGroupWidth ({ width }) {
+            const target = this.contextMenuTarget
+            if (!target || target.type !== 'group') return
+            this.$store.dispatch('wysiwyg/pushUndoSnapshot')
+            this.$store.dispatch('wysiwyg/updateGroupProperty', {
+                id: target.id,
+                key: 'width',
+                value: width
+            })
+            if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
+        },
 
         // Page management methods
         createPage () {
@@ -853,9 +958,17 @@ export default {
         },
 
         // ── Context menu ─────────────────────────────────────────────────────
+        onWidgetContext ({ widget, event }) {
+            this.contextMenuTarget = { type: 'widget', id: widget.id, widgetType: widget.type }
+            this.$refs.contextMenu.open(event.clientX, event.clientY)
+        },
         onGroupContext (event, group) {
             this.contextMenuTarget = { type: 'group', id: group.id }
             this.$refs.contextMenu.open(event.clientX, event.clientY)
+        },
+        onCanvasContext ({ x, y }) {
+            this.contextMenuTarget = null
+            this.$refs.contextMenu.open(x, y)
         },
         deleteContextWidget () {
             const target = this.contextMenuTarget
