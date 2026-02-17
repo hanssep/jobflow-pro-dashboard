@@ -25,6 +25,7 @@
             @zoom-reset="zoomReset"
             @zoom-fit="zoomFit"
             @toggle-grid-overlay="gridOverlay = !gridOverlay"
+            @toggle-theme-editor="toggleThemeEditor"
         />
         <v-main class="studio-main">
             <!-- Pages mode: grid of page cards -->
@@ -74,6 +75,15 @@
                 <transition name="slide-right">
                     <div v-if="isPropertiesVisible" class="studio-editor__properties">
                         <InspectorPanel />
+                    </div>
+                </transition>
+                <transition name="slide-right">
+                    <div v-if="isThemeEditorVisible && activeThemeId" class="studio-editor__properties">
+                        <ThemeEditorPanel
+                            :theme-id="activeThemeId"
+                            :dashboard-id="dashboardId"
+                            :editor-path="editorPath"
+                        />
                     </div>
                 </transition>
             </div>
@@ -179,6 +189,7 @@ import ContextMenu from './ContextMenu.vue'
 import InlineTextEditor from './InlineTextEditor.vue'
 import PageCreationDialog from './dialogs/PageCreationDialog.vue'
 import InspectorPanel from './inspector/InspectorPanel.vue'
+import ThemeEditorPanel from './inspector/ThemeEditorPanel.vue'
 import PageGrid from './PageGrid.vue'
 import StudioCanvas from './StudioCanvas.vue'
 import StudioToolbar from './StudioToolbar.vue'
@@ -186,10 +197,10 @@ import StudioApi from './composables/useStudioApi.js'
 
 export default {
     name: 'StudioView',
-    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ContextMenu, PageCreationDialog, InlineTextEditor },
+    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ThemeEditorPanel, ContextMenu, PageCreationDialog, InlineTextEditor },
     setup () {
-        const { isPropertiesVisible } = useDesignerState()
-        return { isPropertiesVisible }
+        const { isPropertiesVisible, isThemeEditorVisible, toggleThemeEditor } = useDesignerState()
+        return { isPropertiesVisible, isThemeEditorVisible, toggleThemeEditor }
     },
     data () {
         return {
@@ -241,7 +252,7 @@ export default {
         }
     },
     computed: {
-        ...mapState('ui', ['pages', 'groups', 'widgets', 'dashboards']),
+        ...mapState('ui', ['pages', 'groups', 'widgets', 'dashboards', 'themes']),
         ...mapGetters('wysiwyg', ['canUndo']),
         mode () {
             return this.activePageId ? 'editing' : 'pages'
@@ -255,6 +266,14 @@ export default {
         creatingPageId () {
             return this.$store.state.studio.creatingPageId
         },
+        activeThemeId () {
+            if (!this.activePageId || !this.pages) return null
+            return this.pages[this.activePageId]?.theme || null
+        },
+        activeTheme () {
+            if (!this.activeThemeId || !this.themes) return null
+            return this.themes[this.activeThemeId] || null
+        },
         activePageName () {
             if (!this.activePageId || !this.pages) return ''
             return this.pages[this.activePageId]?.name || ''
@@ -265,6 +284,17 @@ export default {
         previewWidth () {
             const widths = { desktop: 1920, laptop: 1280, tablet: 768, mobile: 375 }
             return widths[this.previewBreakpoint] || 0
+        }
+    },
+    watch: {
+        activeTheme: {
+            immediate: true,
+            handler () {
+                this.applyTheme()
+            }
+        },
+        mode () {
+            this.applyTheme()
         }
     },
     mounted () {
@@ -884,6 +914,66 @@ export default {
             }).then(() => {
                 if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
             })
+        },
+
+        // ── Theme application (mirrors Baseline.vue updateTheme) ────────────
+        applyTheme () {
+            const theme = this.activeTheme
+            if (!this.$vuetify) return
+            const colors = this.$vuetify.theme.themes.nrdb.colors
+            if (!colors) return
+
+            if (!theme || this.mode !== 'editing') {
+                // Reset to defaults when not editing or no theme
+                this._resetTheme()
+                return
+            }
+
+            // Map theme colors → Vuetify theme (only primary-related colors)
+            colors['navigation-background'] = theme.colors.surface
+            colors.primary = theme.colors.primary
+            colors['on-primary'] = this._getContrast(theme.colors.primary)
+            colors['group-background'] = theme.colors.groupBg
+            colors['group-outline'] = theme.colors.groupOutline
+
+            // Set background/surface as CSS variables on canvas only (not Vuetify global)
+            // to avoid breaking panel/toolbar form elements
+            colors.background = theme.colors.bgPage
+            // Explicitly set on-background to black to prevent auto-calc of white text
+            colors['on-background'] = '#000000'
+
+            // Map theme sizes → CSS variables on root element
+            const root = this.$el
+            if (root) {
+                root.style.setProperty('--page-padding', theme.sizes.pagePadding)
+                root.style.setProperty('--group-gap', theme.sizes.groupGap)
+                root.style.setProperty('--group-border-radius', theme.sizes.groupBorderRadius)
+                root.style.setProperty('--widget-gap', theme.sizes.widgetGap)
+            }
+        },
+        _resetTheme () {
+            const colors = this.$vuetify.theme.themes.nrdb?.colors
+            if (!colors) return
+            // Restore safe defaults for page background
+            colors.background = '#eeeeee'
+            colors['on-background'] = '#000000'
+            // Clear CSS size variables
+            const root = this.$el
+            if (root) {
+                root.style.removeProperty('--page-padding')
+                root.style.removeProperty('--group-gap')
+                root.style.removeProperty('--group-border-radius')
+                root.style.removeProperty('--widget-gap')
+            }
+        },
+        _getContrast (hex) {
+            if (!hex) return '#000000'
+            const bigint = parseInt(hex.replace('#', ''), 16)
+            const r = (bigint >> 16) & 255
+            const g = (bigint >> 8) & 255
+            const b = bigint & 255
+            const brightness = Math.round(((r * 299) + (g * 587) + (b * 114)) / 1000)
+            return brightness > 125 ? '#000000' : '#ffffff'
         }
     }
 }
@@ -891,7 +981,7 @@ export default {
 
 <style scoped>
 .studio-main {
-    background-color: #f3f4f6;
+    background-color: rgb(var(--v-theme-background, 243, 244, 246));
     min-height: 100vh;
     font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -914,6 +1004,12 @@ export default {
     background-color: #ffffff;
     border-left: 1px solid #dee2e6;
     box-shadow: -2px 0 8px rgba(0, 0, 0, 0.04);
+    /* Isolate panel from Vuetify theme changes so labels/inputs stay readable */
+    --v-theme-on-surface: 0, 0, 0;
+    --v-theme-on-background: 0, 0, 0;
+    --v-theme-surface: 255, 255, 255;
+    --v-theme-background: 255, 255, 255;
+    color: rgba(0, 0, 0, 0.87);
 }
 
 /* Panel slide transitions */

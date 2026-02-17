@@ -17,6 +17,7 @@ export function useDesignerState () {
     const dragWidgetType = computed(() => store.getters['designer/dragWidgetType'])
     const isPaletteVisible = computed(() => store.getters['designer/isPaletteVisible'])
     const isPropertiesVisible = computed(() => store.getters['designer/isPropertiesVisible'])
+    const isThemeEditorVisible = computed(() => store.getters['designer/isThemeEditorVisible'])
 
     // Widget types
     const widgetTypes = computed(() => store.getters['widgetTypes/allTypes'])
@@ -57,6 +58,10 @@ export function useDesignerState () {
         store.commit('designer/TOGGLE_PROPERTIES')
     }
 
+    function toggleThemeEditor () {
+        store.commit('designer/TOGGLE_THEME_EDITOR')
+    }
+
     function getTypeInfo (typeName) {
         return store.getters['widgetTypes/getType'](typeName)
     }
@@ -76,6 +81,7 @@ export function useDesignerState () {
         dragWidgetType,
         isPaletteVisible,
         isPropertiesVisible,
+        isThemeEditorVisible,
         widgetTypes,
         widgetCategories,
         placeableTypes,
@@ -91,6 +97,7 @@ export function useDesignerState () {
         endDrag,
         togglePalette,
         toggleProperties,
+        toggleThemeEditor,
         getTypeInfo,
         getTypesByCategory
     }

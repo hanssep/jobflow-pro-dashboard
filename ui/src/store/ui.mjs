@@ -242,6 +242,22 @@ const mutations = {
                 }
             }
         }
+    },
+    UPDATE_THEME_PROPERTY (state, { themeId, path, value }) {
+        if (!state.themes || !state.themes[themeId]) return
+        const theme = state.themes[themeId]
+        // Deep-set the property: path like 'colors.primary' → theme.colors.primary = value
+        const parts = path.split('.')
+        let target = theme
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (!target[parts[i]] || typeof target[parts[i]] !== 'object') {
+                target[parts[i]] = {}
+            }
+            target = target[parts[i]]
+        }
+        target[parts[parts.length - 1]] = value
+        // Replace the theme object reference to trigger Baseline.vue's shallow watcher
+        state.themes[themeId] = { ...theme }
     }
 }
 

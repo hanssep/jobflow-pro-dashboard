@@ -334,7 +334,7 @@ export default {
 .studio-canvas__body {
     flex: 1;
     overflow: auto;
-    background-color: #f3f4f6;
+    background-color: rgb(var(--v-theme-background, 243, 244, 246));
     padding: 0;
     /* Subtle cross-hatch pattern for canvas feel */
     background-image:

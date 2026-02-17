@@ -15,6 +15,7 @@ const GROUP_PROPS = new Set([
     'className', 'visible', 'disabled', 'groupType'
 ])
 const VALID_LAYOUTS = new Set(['grid', 'flex', 'tabs', 'notebook'])
+const THEME_PROPS = new Set(['colors', 'sizes'])
 const VALID_GROUP_TYPES = new Set(['default', 'dialog'])
 
 module.exports = function (RED) {
@@ -574,6 +575,52 @@ module.exports = function (RED) {
                 return res.status(201).json({ group: newGroup, widgets: newWidgets })
             } catch (error) {
                 return handleError(res, 'POST duplicate group', error)
+            }
+        }
+    )
+
+    // ── PATCH /studio/themes/:themeId ────────────────────────────────────
+    RED.httpAdmin.patch(
+        '/dashboard/api/v1/:dashboardId/studio/themes/:themeId',
+        RED.auth.needsPermission('flows.write'),
+        async function (req, res) {
+            try {
+                const dashboardId = req.params.dashboardId
+                const themeId = req.params.themeId
+                if (!validateDashboard(dashboardId, res)) return
+
+                const client = await getFlowsClient(req)
+                const { flows, rev } = await client.getFlows()
+
+                const theme = flows.find(n => n.id === themeId && n.type === 'ui-theme')
+                if (!theme) {
+                    return res.status(404).json({ error: 'Theme not found' })
+                }
+
+                // Verify theme belongs to this dashboard (themes are used by pages that belong to the dashboard)
+                const dashboardPages = flows.filter(n => n.type === 'ui-page' && n.ui === dashboardId)
+                const usedByDashboard = dashboardPages.some(p => p.theme === themeId)
+                if (!usedByDashboard) {
+                    return res.status(400).json({ error: 'Theme is not used by this dashboard' })
+                }
+
+                // Merge whitelisted properties (colors, sizes are sub-objects — merge, not replace)
+                for (const key of Object.keys(req.body)) {
+                    if (!THEME_PROPS.has(key)) continue
+                    if (typeof req.body[key] === 'object' && req.body[key] !== null) {
+                        if (!theme[key] || typeof theme[key] !== 'object') {
+                            theme[key] = {}
+                        }
+                        Object.assign(theme[key], req.body[key])
+                    } else {
+                        theme[key] = req.body[key]
+                    }
+                }
+
+                await client.postFlows(flows, rev)
+                return res.json(theme)
+            } catch (error) {
+                return handleError(res, 'PATCH theme', error)
             }
         }
     )

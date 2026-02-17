@@ -17,7 +17,8 @@ const state = () => ({
     },
     panels: {
         palette: true,       // Left panel visible
-        properties: true     // Right panel visible
+        properties: true, // Right panel visible
+        themeEditor: false // Theme editor panel visible
     }
 })
 
@@ -48,6 +49,9 @@ const getters = {
     },
     isPropertiesVisible (state) {
         return state.panels.properties
+    },
+    isThemeEditorVisible (state) {
+        return state.panels.themeEditor
     },
     multiSelection (state) {
         return state.multiSelection
@@ -115,6 +119,17 @@ const mutations = {
     },
     TOGGLE_PROPERTIES (state) {
         state.panels.properties = !state.panels.properties
+        // Mutually exclusive with theme editor
+        if (state.panels.properties) {
+            state.panels.themeEditor = false
+        }
+    },
+    TOGGLE_THEME_EDITOR (state) {
+        state.panels.themeEditor = !state.panels.themeEditor
+        // Mutually exclusive with properties panel
+        if (state.panels.themeEditor) {
+            state.panels.properties = false
+        }
     },
     SET_PANEL_VISIBILITY (state, { panel, visible }) {
         if (panel in state.panels) {

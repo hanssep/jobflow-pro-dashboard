@@ -110,6 +110,16 @@
                 class="studio-toolbar__btn"
                 @click="$emit('toggle-grid-overlay')"
             />
+            <!-- Toggle theme editor -->
+            <v-btn
+                v-tooltip="'Toggle Theme Editor'"
+                :variant="themeEditorVisible ? 'flat' : 'text'"
+                icon="mdi-palette"
+                size="small"
+                :color="themeEditorVisible ? 'primary' : undefined"
+                class="studio-toolbar__btn"
+                @click="$emit('toggle-theme-editor')"
+            />
             <!-- Toggle property panel -->
             <v-btn
                 v-tooltip="'Toggle Properties Panel'"
@@ -200,13 +210,14 @@ export default {
     emits: [
         'create-page', 'go-back', 'back-to-pages',
         'save', 'discard', 'undo', 'redo', 'toggle-properties',
+        'toggle-theme-editor',
         'update:preview-breakpoint',
         'zoom-in', 'zoom-out', 'zoom-reset', 'zoom-fit',
         'toggle-grid-overlay'
     ],
     setup () {
-        const { isPropertiesVisible } = useDesignerState()
-        return { propertiesVisible: isPropertiesVisible }
+        const { isPropertiesVisible, isThemeEditorVisible } = useDesignerState()
+        return { propertiesVisible: isPropertiesVisible, themeEditorVisible: isThemeEditorVisible }
     },
     data () {
         return {
@@ -234,6 +245,11 @@ export default {
     border-bottom: 1px solid #dee2e6;
     font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%) !important;
+    /* Isolate toolbar from Vuetify theme changes */
+    --v-theme-on-surface: 0, 0, 0;
+    --v-theme-on-background: 0, 0, 0;
+    --v-theme-surface: 255, 255, 255;
+    color: rgba(0, 0, 0, 0.87);
 }
 .studio-toolbar__title {
     font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

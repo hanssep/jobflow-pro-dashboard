@@ -126,5 +126,15 @@ export default {
             headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
             data: name ? { name } : {}
         })
+    },
+
+    // ── Theme endpoints ──────────────────────────────────────────────────
+    updateTheme ({ dashboard, themeId, editorPath, updates }) {
+        return axios.request({
+            method: 'PATCH',
+            url: getDashboardApiUrl(editorPath || '', dashboard, 'studio', 'themes', themeId),
+            headers: applyAuth({ 'Content-type': 'application/json' }, editorPath),
+            data: updates
+        })
     }
 }
