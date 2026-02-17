@@ -26,6 +26,7 @@
             @zoom-fit="zoomFit"
             @toggle-grid-overlay="gridOverlay = !gridOverlay"
             @toggle-theme-editor="toggleThemeEditor"
+            @page-settings="showEditPageDialog"
         />
         <v-main class="studio-main">
             <!-- Pages mode: grid of page cards -->
@@ -157,6 +158,13 @@
             @cancel="pageDialog.show = false"
         />
 
+        <!-- Group creation dialog -->
+        <GroupCreationDialog
+            :visible="groupDialog.show"
+            @save="onGroupDialogSave"
+            @cancel="groupDialog.show = false"
+        />
+
         <!-- Delete Group Confirmation Dialog -->
         <v-dialog v-model="deleteGroupDialog.show" max-width="420" persistent>
             <v-card class="studio-dialog">
@@ -176,6 +184,15 @@
         <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000">
             {{ snackbar.text }}
         </v-snackbar>
+
+        <!-- Draft restore snackbar -->
+        <v-snackbar v-model="draftRestoreSnackbar" :timeout="-1" color="info">
+            Restore unsaved changes?
+            <template #actions>
+                <v-btn variant="text" size="small" @click="restoreDraft">Restore</v-btn>
+                <v-btn variant="text" size="small" @click="dismissDraft">Dismiss</v-btn>
+            </template>
+        </v-snackbar>
     </v-app>
 </template>
 
@@ -187,6 +204,7 @@ import { initialise as initEditMode } from '../EditTracking.js'
 
 import ContextMenu from './ContextMenu.vue'
 import InlineTextEditor from './InlineTextEditor.vue'
+import GroupCreationDialog from './dialogs/GroupCreationDialog.vue'
 import PageCreationDialog from './dialogs/PageCreationDialog.vue'
 import InspectorPanel from './inspector/InspectorPanel.vue'
 import ThemeEditorPanel from './inspector/ThemeEditorPanel.vue'
@@ -197,7 +215,7 @@ import StudioApi from './composables/useStudioApi.js'
 
 export default {
     name: 'StudioView',
-    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ThemeEditorPanel, ContextMenu, PageCreationDialog, InlineTextEditor },
+    components: { StudioToolbar, PageGrid, StudioCanvas, InspectorPanel, ThemeEditorPanel, ContextMenu, PageCreationDialog, GroupCreationDialog, InlineTextEditor },
     setup () {
         const { isPropertiesVisible, isThemeEditorVisible, toggleThemeEditor } = useDesignerState()
         return { isPropertiesVisible, isThemeEditorVisible, toggleThemeEditor }
@@ -241,6 +259,11 @@ export default {
                 text: '',
                 color: 'error'
             },
+            groupDialog: {
+                show: false
+            },
+            draftRestoreSnackbar: false,
+            _draftTimer: null,
             inlineEdit: {
                 show: false,
                 widgetId: null,
@@ -298,6 +321,13 @@ export default {
         }
     },
     mounted () {
+        // Subscribe to undo snapshots to trigger draft saves on any mutation
+        this._unsubscribeStore = this.$store.subscribe((mutation) => {
+            if (mutation.type === 'wysiwyg/pushUndoSnapshot' && this.activePageId) {
+                this._scheduleDraftSave()
+            }
+        })
+
         this._keydownHandler = (e) => {
             if (this.mode !== 'editing') return
 
@@ -394,6 +424,8 @@ export default {
         if (this._keydownHandler) {
             window.removeEventListener('keydown', this._keydownHandler)
         }
+        if (this._draftTimer) clearTimeout(this._draftTimer)
+        if (this._unsubscribeStore) this._unsubscribeStore()
     },
     methods: {
         async openPageEditor (pageId) {
@@ -409,6 +441,13 @@ export default {
                     initEditMode(data.editKey, pageId, this.editorPath)
                 }
                 this.activePageId = pageId
+                // Check for existing draft
+                this._pendingDraft = null
+                const draft = await this.$store.dispatch('wysiwyg/loadDraft', { pageId })
+                if (draft && draft.timestamp) {
+                    this._pendingDraft = draft
+                    this.draftRestoreSnackbar = true
+                }
             } catch (err) {
                 this.showError('Failed to open page: ' + (err.response?.data?.error || err.message))
             }
@@ -422,6 +461,7 @@ export default {
         },
         confirmLeaveAndExit () {
             this.confirmLeaveDialog.show = false
+            this.$store.dispatch('wysiwyg/clearDraft', { pageId: this.activePageId })
             if (this.$refs.canvas) {
                 this.$refs.canvas.doDiscard()
                 this.$refs.canvas.doExit()
@@ -446,6 +486,7 @@ export default {
             try {
                 await this.$refs.canvas.doSave()
                 this.editState.dirty = false
+                this.$store.dispatch('wysiwyg/clearDraft', { pageId: this.activePageId })
             } catch (error) {
                 const serverMsg = error.response?.data?.error || error.response?.data?.message
                 const detail = serverMsg || error.message || 'Unknown error'
@@ -459,6 +500,7 @@ export default {
             if (this.$refs.canvas) {
                 this.$refs.canvas.doDiscard()
                 this.editState.dirty = false
+                this.$store.dispatch('wysiwyg/clearDraft', { pageId: this.activePageId })
             }
         },
         undoEdit () {
@@ -477,6 +519,10 @@ export default {
             }
             if ('zoomDelta' in payload) {
                 this.setZoom(this.zoom + payload.zoomDelta)
+            }
+            // Schedule draft save whenever we're dirty (covers all changes, not just the first)
+            if (this.editState.dirty) {
+                this._scheduleDraftSave()
             }
         },
         // Breakpoint & zoom
@@ -745,17 +791,19 @@ export default {
         // ── Group CRUD ───────────────────────────────────────────────────────
         showCreateGroupDialog () {
             if (!this.activePageId) return
-            this.createGroupForPage()
+            this.groupDialog.show = true
         },
-        async createGroupForPage () {
+        async onGroupDialogSave (data) {
+            this.groupDialog.show = false
             try {
                 await StudioApi.createGroup({
                     dashboard: this.dashboardId,
                     pageId: this.activePageId,
                     editorPath: this.editorPath,
-                    name: 'New Group',
-                    width: 6,
-                    showTitle: true
+                    name: data.name,
+                    width: data.width,
+                    showTitle: data.showTitle,
+                    groupType: data.groupType
                 })
             } catch (err) {
                 this.showError('Failed to create group: ' + (err.response?.data?.error || err.message))
@@ -914,6 +962,51 @@ export default {
             }).then(() => {
                 if (this.$refs.canvas) this.$refs.canvas.updateEditStateObjects()
             })
+        },
+
+        // ── Auto-save draft ──────────────────────────────────────────────────
+        _scheduleDraftSave () {
+            if (this._draftTimer) clearTimeout(this._draftTimer)
+            this._draftTimer = setTimeout(() => {
+                if (this.activePageId && this.editState.dirty) {
+                    this.$store.dispatch('wysiwyg/saveDraft', { pageId: this.activePageId })
+                }
+            }, 2000)
+        },
+        restoreDraft () {
+            this.draftRestoreSnackbar = false
+            const draft = this._pendingDraft
+            if (!draft) return
+            // Apply draft state: restore groups and widgets from draft
+            const store = this.$store
+            const uiGroups = store.state.ui.groups
+            const uiWidgets = store.state.ui.widgets
+            // Restore groups
+            for (const key in draft.groups) {
+                if (uiGroups[key]) {
+                    Object.assign(uiGroups[key], draft.groups[key])
+                }
+            }
+            // Restore widgets
+            for (const key in draft.widgets) {
+                if (uiWidgets[key]) {
+                    const dw = draft.widgets[key]
+                    if (dw.props) Object.assign(uiWidgets[key].props, dw.props)
+                    if (dw.layout) Object.assign(uiWidgets[key].layout, dw.layout)
+                }
+            }
+            store.commit('ui/groups', { ...uiGroups }, { root: true })
+            store.commit('ui/widgets', { ...uiWidgets }, { root: true })
+            this.editState.dirty = true
+            if (this.$refs.canvas) {
+                this.$refs.canvas.updateEditStateObjects()
+            }
+            this._pendingDraft = null
+        },
+        dismissDraft () {
+            this.draftRestoreSnackbar = false
+            this._pendingDraft = null
+            this.$store.dispatch('wysiwyg/clearDraft', { pageId: this.activePageId })
         },
 
         // ── Theme application (mirrors Baseline.vue updateTheme) ────────────

@@ -468,6 +468,50 @@ const actions = {
         commit('shadowWidgets', null)
         commit('clearUndoStack')
     },
+    // ── Auto-save draft to localStorage ────────────────────────────────
+    saveDraft ({ rootState, state }, { pageId }) {
+        if (!pageId) return
+        const key = `studio-draft-${pageId}`
+        const draft = {
+            pageId,
+            timestamp: Date.now(),
+            groups: JSON.parse(JSON.stringify(rootState.ui.groups)),
+            widgets: {}
+        }
+        for (const k in rootState.ui.widgets) {
+            const w = rootState.ui.widgets[k]
+            draft.widgets[k] = {
+                id: w.id,
+                type: w.type,
+                props: { ...w.props },
+                layout: { ...w.layout }
+            }
+        }
+        try {
+            localStorage.setItem(key, JSON.stringify(draft))
+        } catch (e) {
+            console.warn('[Studio] Failed to save draft:', e)
+        }
+    },
+    loadDraft (_, { pageId }) {
+        if (!pageId) return null
+        try {
+            const raw = localStorage.getItem(`studio-draft-${pageId}`)
+            if (!raw) return null
+            return JSON.parse(raw)
+        } catch (e) {
+            console.warn('[Studio] Failed to load draft:', e)
+            return null
+        }
+    },
+    clearDraft (_, { pageId }) {
+        if (!pageId) return
+        try {
+            localStorage.removeItem(`studio-draft-${pageId}`)
+        } catch (e) {
+            // ignore
+        }
+    },
     redo ({ rootState, state, commit }) {
         if (state.redoStack.length === 0) {
             return false

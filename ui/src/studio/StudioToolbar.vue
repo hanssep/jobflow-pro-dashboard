@@ -33,6 +33,14 @@
                 <span class="studio-toolbar__breadcrumb-studio" @click="$emit('back-to-pages')">Studio</span>
                 <v-icon size="14" class="mx-1" color="#999">mdi-chevron-right</v-icon>
                 <span class="studio-toolbar__breadcrumb-page">{{ pageName }}</span>
+                <v-btn
+                    v-tooltip="'Page Settings'"
+                    variant="text"
+                    icon="mdi-cog"
+                    size="x-small"
+                    class="studio-toolbar__btn-sm ml-1"
+                    @click="$emit('page-settings')"
+                />
             </v-toolbar-title>
             <v-spacer />
 
@@ -213,7 +221,8 @@ export default {
         'toggle-theme-editor',
         'update:preview-breakpoint',
         'zoom-in', 'zoom-out', 'zoom-reset', 'zoom-fit',
-        'toggle-grid-overlay'
+        'toggle-grid-overlay',
+        'page-settings'
     ],
     setup () {
         const { isPropertiesVisible, isThemeEditorVisible } = useDesignerState()
