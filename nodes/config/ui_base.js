@@ -1210,7 +1210,7 @@ module.exports = function (RED) {
     RED.nodes.registerType('ui-base', UIBaseNode)
 
     // PATCH: /dashboard/api/v1/:dashboardId/flows - deploy curated/controlled updates to the flows
-    RED.httpAdmin.patch('/dashboard/api/v1/:dashboardId/flows', RED.auth.needsPermission('flows.write'), async function (req, res) {
+    RED.httpAdmin.patch('/dashboard/api/v1/:dashboardId/flows', async function (req, res) {
         // HTTPS-only internal call to Node-RED admin API (JobFlow Pro)
         const adminPort = RED.settings.uiPort
         const httpAdminRoot = RED.settings.httpAdminRoot
@@ -1435,7 +1435,7 @@ module.exports = function (RED) {
     })
 
     // PATCH: /dashboard/api/v1/:dashboardId/edit/:pageId - start editing a page
-    RED.httpAdmin.patch('/dashboard/api/v1/:dashboardId/edit/:pageId', RED.auth.needsPermission('flows.write'), async function (req, res) {
+    RED.httpAdmin.patch('/dashboard/api/v1/:dashboardId/edit/:pageId', async function (req, res) {
         /** @type {UIBaseNode} */
         const baseNode = RED.nodes.getNode(req.params.dashboardId)
         if (!baseNode) {

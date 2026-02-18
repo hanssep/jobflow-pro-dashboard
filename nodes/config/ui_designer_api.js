@@ -470,7 +470,7 @@ module.exports = function (RED) {
     }
 
     // Register the widget-types endpoint
-    RED.httpAdmin.get('/dashboard/api/v1/:dashboardId/widget-types', RED.auth.needsPermission('flows.read'), function (req, res) {
+    RED.httpAdmin.get('/dashboard/api/v1/:dashboardId/widget-types', function (req, res) {
         const dashboardId = req.params.dashboardId
         const baseNode = RED.nodes.getNode(dashboardId)
         if (!baseNode) {

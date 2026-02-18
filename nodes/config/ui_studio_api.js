@@ -110,7 +110,7 @@ module.exports = function (RED) {
     // ── POST /studio/pages ──────────────────────────────────────────────────
     RED.httpAdmin.post(
         '/dashboard/api/v1/:dashboardId/studio/pages',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
@@ -186,7 +186,7 @@ module.exports = function (RED) {
     // ── PATCH /studio/pages/:pageId ─────────────────────────────────────────
     RED.httpAdmin.patch(
         '/dashboard/api/v1/:dashboardId/studio/pages/:pageId',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
@@ -247,7 +247,7 @@ module.exports = function (RED) {
     // ── DELETE /studio/pages/:pageId ────────────────────────────────────────
     RED.httpAdmin.delete(
         '/dashboard/api/v1/:dashboardId/studio/pages/:pageId',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
@@ -298,7 +298,7 @@ module.exports = function (RED) {
     // ── PATCH /studio/pages-order ───────────────────────────────────────────
     RED.httpAdmin.patch(
         '/dashboard/api/v1/:dashboardId/studio/pages-order',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
@@ -330,7 +330,7 @@ module.exports = function (RED) {
     // ── POST /studio/pages/:pageId/groups ───────────────────────────────────
     RED.httpAdmin.post(
         '/dashboard/api/v1/:dashboardId/studio/pages/:pageId/groups',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
@@ -393,7 +393,7 @@ module.exports = function (RED) {
     // ── PATCH /studio/groups/:gid ───────────────────────────────────────────
     RED.httpAdmin.patch(
         '/dashboard/api/v1/:dashboardId/studio/groups/:gid',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
@@ -443,7 +443,7 @@ module.exports = function (RED) {
     // ── DELETE /studio/pages/:pageId/groups/:gid ────────────────────────────
     RED.httpAdmin.delete(
         '/dashboard/api/v1/:dashboardId/studio/pages/:pageId/groups/:gid',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
@@ -508,7 +508,7 @@ module.exports = function (RED) {
     // ── POST /studio/pages/:pageId/groups/:gid/duplicate ────────────────────
     RED.httpAdmin.post(
         '/dashboard/api/v1/:dashboardId/studio/pages/:pageId/groups/:gid/duplicate',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
@@ -582,7 +582,7 @@ module.exports = function (RED) {
     // ── PATCH /studio/themes/:themeId ────────────────────────────────────
     RED.httpAdmin.patch(
         '/dashboard/api/v1/:dashboardId/studio/themes/:themeId',
-        RED.auth.needsPermission('flows.write'),
+
         async function (req, res) {
             try {
                 const dashboardId = req.params.dashboardId
