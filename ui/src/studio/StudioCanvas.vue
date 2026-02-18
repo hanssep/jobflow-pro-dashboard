@@ -37,7 +37,7 @@
                     @dragover="onGroupDragOver($event, $index, g)"
                     @dragend="onGroupDragEnd($event, $index, g)"
                     @dragleave="onGroupDragLeave($event, $index, g)"
-                    @drop.prevent
+                    @drop.prevent="onGroupDropFromPalette($event, g)"
                     @dragenter.prevent
                 >
                     <v-card variant="outlined" class="bg-group-background" :class="{ 'studio-canvas__group--selected': isGroupSelected(g.id) }">
@@ -328,6 +328,24 @@ export default {
         },
         onCanvasContextMenu (e) {
             this.$emit('canvas-context', { x: e.clientX, y: e.clientY })
+        },
+        onGroupDropFromPalette (event, group) {
+            try {
+                const raw = event.dataTransfer.getData('application/x-designer-widget')
+                if (!raw) return
+                const data = JSON.parse(raw)
+                if (data?.source === 'palette' && data.widgetType) {
+                    // Append to end of group
+                    const widgets = this.groupWidgets(group.id)
+                    this.onWidgetDrop({
+                        widgetType: data.widgetType,
+                        groupId: group.id,
+                        index: widgets.length
+                    })
+                }
+            } catch (e) {
+                // Not a palette drag
+            }
         }
     }
 }

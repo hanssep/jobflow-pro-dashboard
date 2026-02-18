@@ -226,7 +226,7 @@ const actions = {
             __DB2_DESIGNER_ADDED: true
         }
         rootState.ui.widgets[widget.id] = widget
-        commit('ui/widgets', rootState.ui.widgets, { root: true })
+        commit('ui/widgets', { ...rootState.ui.widgets }, { root: true })
         return widget
     },
     addWidget ({ rootState, state, commit }, { type, group, name, order, height, width, props }) {
@@ -245,17 +245,18 @@ const actions = {
         const component = markRaw(UISpacer)
 
         const defaultProps = {
-            group,
-            name: name || type.replace('ui-', ''),
             tooltip: '',
-            order: order ?? 0,
-            width: width ?? 3,
-            height: height ?? 1,
             className: '',
             _users: [],
             enabled: true,
             visible: true,
-            ...(props || {})
+            ...(props || {}),
+            // These must come AFTER spread to avoid being overwritten by empty defaults
+            group,
+            name: name || type.replace('ui-', ''),
+            order: order ?? 0,
+            width: width ?? 3,
+            height: height ?? 1
         }
 
         const widget = {
@@ -273,7 +274,7 @@ const actions = {
             __DB2_DESIGNER_ADDED: true
         }
         rootState.ui.widgets[widget.id] = widget
-        commit('ui/widgets', rootState.ui.widgets, { root: true })
+        commit('ui/widgets', { ...rootState.ui.widgets }, { root: true })
         return widget
     },
     updateGroupProperty ({ rootState, commit }, { id, key, value }) {
