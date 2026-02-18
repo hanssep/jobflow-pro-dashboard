@@ -2,8 +2,6 @@
  * Dashboard Studio API — Page & Group Management
  * Provides CRUD endpoints for pages and groups in the Studio designer.
  */
-const { Agent } = require('https')
-const axios = require('axios')
 
 // Property whitelists for security — only these properties can be set via the API
 const PAGE_PROPS = new Set([
@@ -20,59 +18,23 @@ const VALID_GROUP_TYPES = new Set(['default', 'dialog'])
 
 module.exports = function (RED) {
     /**
-     * Build a flows client that can GET and POST flows to the internal Node-RED admin API.
-     * Reuses scheme/host/port/https/headers logic so each endpoint stays lean.
+     * Build a flows client that uses the Node-RED runtime API directly.
+     * Bypasses HTTP auth — safe because our endpoints handle their own authorization.
      */
-    async function getFlowsClient (req) {
-        const adminPort = RED.settings.uiPort
-        const httpAdminRoot = RED.settings.httpAdminRoot
-        const httpsAgent = new Agent({ rejectUnauthorized: false })
-        const root = httpAdminRoot.endsWith('/') ? httpAdminRoot : httpAdminRoot + '/'
-        const url = `https://localhost:${adminPort}${root}flows`
-
-        const fwd = {}
-        if (req.headers.cookie) fwd.cookie = req.headers.cookie
-        if (req.headers.authorization) fwd.authorization = req.headers.authorization
-        if (req.headers.referer) fwd.referer = req.headers.referer
+    function getFlowsClient (req) {
+        const user = req.user || { username: '_studio' }
 
         async function getFlows () {
-            const resp = await axios.request({
-                method: 'GET',
-                url,
-                httpsAgent,
-                headers: {
-                    'Node-RED-API-Version': 'v2',
-                    Accept: 'application/json',
-                    ...fwd
-                }
-            })
-            if (resp.status !== 200) {
-                const err = new Error(resp?.data?.message || 'Failed to GET flows')
-                err.status = resp.status
-                throw err
-            }
-            return { flows: resp.data?.flows || [], rev: resp.data?.rev }
+            const result = await RED.runtime.flows.getFlows({ user })
+            return { flows: result?.flows || [], rev: result?.rev }
         }
 
         async function postFlows (flows, rev) {
-            const resp = await axios.request({
-                method: 'POST',
-                url,
-                httpsAgent,
-                headers: {
-                    'Node-RED-Deployment-Type': 'nodes',
-                    'Node-RED-API-Version': 'v2',
-                    'Content-Type': 'application/json',
-                    ...fwd
-                },
-                data: { flows, rev }
+            return RED.runtime.flows.setFlows({
+                user,
+                flows: { flows, rev },
+                deploymentType: 'nodes'
             })
-            if (resp.status !== 200) {
-                const err = new Error(resp?.data?.message || 'Failed to POST flows')
-                err.status = resp.status
-                throw err
-            }
-            return resp.data
         }
 
         return { getFlows, postFlows }

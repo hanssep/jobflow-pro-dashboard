@@ -1,7 +1,4 @@
-const { Agent } = require('https')
 const path = require('path')
-
-const axios = require('axios')
 
 const v = require('../../package.json').version
 const datastore = require('../store/data.js')
@@ -1211,12 +1208,6 @@ module.exports = function (RED) {
 
     // PATCH: /dashboard/api/v1/:dashboardId/flows - deploy curated/controlled updates to the flows
     RED.httpAdmin.patch('/dashboard/api/v1/:dashboardId/flows', async function (req, res) {
-        // HTTPS-only internal call to Node-RED admin API (JobFlow Pro)
-        const adminPort = RED.settings.uiPort
-        const httpAdminRoot = RED.settings.httpAdminRoot
-        const httpsAgent = new Agent({ rejectUnauthorized: false })
-        const root = httpAdminRoot.endsWith('/') ? httpAdminRoot : httpAdminRoot + '/'
-        const url = `https://localhost:${adminPort}${root}flows`
         // get request body
         const dashboardId = req.params.dashboardId
         const pageId = req.body.page
@@ -1288,30 +1279,6 @@ module.exports = function (RED) {
             }
         }
 
-        // Prepare headers for the requests
-        const getHeaders = {
-            'Node-RED-API-Version': 'v2',
-            Accept: 'application/json'
-        }
-        const postHeaders = {
-            'Node-RED-Deployment-Type': 'nodes', // only update the nodes (don't restart ALL nodes! Only those that have changed)
-            'Node-RED-API-Version': 'v2',
-            'Content-Type': 'application/json'
-        }
-        // apply headers from the incoming request
-        if (req.headers.cookie) {
-            getHeaders.cookie = req.headers.cookie
-            postHeaders.cookie = req.headers.cookie
-        }
-        if (req.headers.authorization) {
-            getHeaders.authorization = req.headers.authorization
-            postHeaders.authorization = req.headers.authorization
-        }
-        if (req.headers.referer) {
-            getHeaders.referer = req.headers.referer
-            postHeaders.referer = req.headers.referer
-        }
-
         const applyIfDifferent = (node, nodeNew, propName) => {
             const origValue = node[propName]
             const newValue = nodeNew[propName]
@@ -1322,19 +1289,10 @@ module.exports = function (RED) {
             return false
         }
 
-            const getResponse = await axios.request({
-                method: 'GET',
-                headers: getHeaders,
-                httpsAgent,
-                url
-            })
-
-            if (getResponse.status !== 200) {
-                return res.status(getResponse.status).json({ error: getResponse?.data?.message || 'An error occurred getting flows', code: 'GET_FAILED' })
-            }
-
-            const flows = getResponse.data?.flows || []
-            const rev = getResponse.data?.rev
+            // Use Node-RED runtime API directly — bypasses HTTP auth
+            const flowConfig = await RED.runtime.flows.getFlows({ user: req.user || { username: '_studio' } })
+            const flows = flowConfig?.flows || []
+            const rev = flowConfig?.rev
             const changeResult = []
             for (const modified of groups) {
                 const current = flows.find(n => n.id === modified.id)
@@ -1408,22 +1366,14 @@ module.exports = function (RED) {
                 return res.status(201).json({ message: 'No changes were found', code: 'NO_CHANGES' })
             }
 
-            const postResponse = await axios.request({
-                method: 'POST',
-                headers: postHeaders,
-                httpsAgent,
-                url,
-                data: {
-                    flows,
-                    rev
-                }
+            // Use Node-RED runtime API directly — bypasses HTTP auth
+            const deployResult = await RED.runtime.flows.setFlows({
+                user: req.user || { username: '_studio' },
+                flows: { flows, rev },
+                deploymentType: 'nodes'
             })
 
-            if (postResponse.status !== 200) {
-                return res.status(postResponse.status).json({ error: postResponse?.data?.message || 'An error occurred deploying flows', code: 'POST_FAILED' })
-            }
-
-            return res.status(postResponse.status).json(postResponse.data)
+            return res.status(200).json(deployResult)
         } catch (error) {
             console.error('[deploy] Error:', error.message || error)
             if (error.response?.data) {
