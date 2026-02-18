@@ -1208,6 +1208,9 @@ module.exports = function (RED) {
 
     // PATCH: /dashboard/api/v1/:dashboardId/flows - deploy curated/controlled updates to the flows
     RED.httpAdmin.patch('/dashboard/api/v1/:dashboardId/flows', async function (req, res) {
+        console.log('[deploy] RED keys:', Object.keys(RED).sort().join(', '))
+        console.log('[deploy] RED.runtime:', typeof RED.runtime)
+        if (RED.runtime) console.log('[deploy] RED.runtime keys:', Object.keys(RED.runtime).sort().join(', '))
         // get request body
         const dashboardId = req.params.dashboardId
         const pageId = req.body.page
